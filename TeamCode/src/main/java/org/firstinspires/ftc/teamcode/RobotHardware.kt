@@ -191,10 +191,10 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         frontRightDrive.direction = DcMotorSimple.Direction.FORWARD
         backRightDrive.direction = DcMotorSimple.Direction.FORWARD
 
-        frontRightDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
-        backRightDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
-        backLeftDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
-        frontLeftDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+        frontRightDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
+        backRightDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
+        backLeftDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
+        frontLeftDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
 
 
         // + -> counter-clockwise, when viewed from right
