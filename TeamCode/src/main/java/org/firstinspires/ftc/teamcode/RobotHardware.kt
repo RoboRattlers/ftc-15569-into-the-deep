@@ -134,7 +134,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         return voltage/voltageSensor.voltage
     }
 
-    private val PivotController = PISFController(
+    private val PivotController = PIDSFController(
         ::getCurrentPivotAngle,
         PIVOT_KP,
         PIVOT_KI,
@@ -143,7 +143,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     )
     val pivotVoltage by PivotController::voltage
 
-    private val SlidesController = PISFController(
+    private val SlidesController = PIDSFController(
         ::getCurrentSlideExtension,
         SLIDES_KP,
         SLIDES_KI,
