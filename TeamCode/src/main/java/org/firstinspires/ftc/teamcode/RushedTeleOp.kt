@@ -35,6 +35,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.Gamepad
 import com.qualcomm.robotcore.util.ElapsedTime
+import org.firstinspires.ftc.teamcode.MathUtils.round
 import org.firstinspires.ftc.teamcode.MathUtils.wrapAngle
 import java.util.Vector
 import kotlin.math.PI
@@ -96,7 +97,7 @@ class RushedTeleOp : OpMode() {
     private var climbing = false
 
     private var scoreHeightIndex = 0
-    private val scoreHeights = arrayOf(0.5, 0.75, 0.9)
+    private val scoreHeights = arrayOf(0.25, 0.35, 0.5, 0.75, 0.92)
 
     /*
      * Code to run REPEATEDLY after the driver hits INIT, but before they hit START
@@ -255,7 +256,7 @@ class RushedTeleOp : OpMode() {
                     scoreHeightIndex = if (scoreHeightIndex > 0) scoreHeightIndex - 1 else 0
                 }
 
-                driveSpeedMult = 0.35
+                driveSpeedMult = 0.5
 
                 hardware.intakeSpeed = -currentGamepadState.left_trigger * 0.5
                 hardware.intakeSpin = currentGamepadState.right_trigger.toDouble()
@@ -277,6 +278,7 @@ class RushedTeleOp : OpMode() {
                 driveSpeedMult = 1.0
                 if (currentGamepadState.right_trigger > 0.5 && lastGamepadState.right_trigger <= 0.5) {
                     state = TeleOpState.CLIMB_OVER_EXTEND_1
+
                 }
                 if (currentGamepadState.dpad_down) {
                     state = TeleOpState.DRIVING
@@ -286,13 +288,14 @@ class RushedTeleOp : OpMode() {
                 hardware.targetSlideExtension = 0.4
                 if (currentGamepadState.right_trigger > 0.5 && lastGamepadState.right_trigger <= 0.5) {
                     state = TeleOpState.CLIMB_PULL_UP_1
+
                 }
             }
             TeleOpState.CLIMB_PULL_UP_1 -> {
                 climbing = true
                 hardware.targetSlideExtension = 0.0
                 if (hardware.getCurrentSlideExtension() < 0.04) {
-                    state = TeleOpState.CLIMB_UNDER_EXTEND_2
+                    //state = TeleOpState.CLIMB_UNDER_EXTEND_2
                 }
             }
             TeleOpState.CLIMB_UNDER_EXTEND_2 -> {
@@ -341,7 +344,7 @@ class RushedTeleOp : OpMode() {
         val ANGLE_SNAP_THRESHOLD = Math.toRadians(5.0);
 
         if (currentGamepadState.right_bumper && !lastGamepadState.right_bumper && mayUseHeadingPID) {
-            val nearestAngleDiff = wrapAngle( round(hardware.currentHeading) - hardware.currentHeading)
+            val nearestAngleDiff = wrapAngle( MathUtils.round(hardware.currentHeading, PI/2) - hardware.currentHeading)
             if (nearestAngleDiff > ANGLE_SNAP_THRESHOLD  && useHeadingPID == false) {
                 targetHeading = round(hardware.currentHeading)
             } else {
@@ -352,7 +355,7 @@ class RushedTeleOp : OpMode() {
 
         if (currentGamepadState.left_bumper && !lastGamepadState.left_bumper && mayUseHeadingPID) {
 
-            val nearestAngleDiff = wrapAngle( round(hardware.currentHeading) - hardware.currentHeading)
+            val nearestAngleDiff = wrapAngle( MathUtils.round(hardware.currentHeading, PI/2) - hardware.currentHeading)
             if (nearestAngleDiff < ANGLE_SNAP_THRESHOLD && useHeadingPID == false) {
                 targetHeading = round(hardware.currentHeading)
             } else {
@@ -363,11 +366,11 @@ class RushedTeleOp : OpMode() {
 
         //set zero heading
         if (currentGamepadState.b && !lastGamepadState.b) {
-            targetHeading -= hardware.currentHeading
-            hardware.zeroHeading = hardware.currentHeading
+            targetHeading -= hardware.rawHeading
+            hardware.zeroHeading = hardware.rawHeading
         }
 
-        val heading_kP = 0.5
+        val heading_kP = 0.4
         val turnPower = if (useHeadingPID)
             wrapAngle(targetHeading - hardware.currentHeading) * heading_kP
             else gamepad1.right_stick_x.toDouble()
@@ -377,7 +380,7 @@ class RushedTeleOp : OpMode() {
         hardware.driveCommand = if (climbing) PoseVelocity2d(Vector2d(0.0, 0.0), 0.0)
             else PoseVelocity2d(
             fieldXBasisInRobotSpace.times((-gamepad1.left_stick_y).toDouble())
-                .plus( fieldYBasisInRobotSpace.times((-gamepad1.left_stick_x).toDouble()) ),
+                .plus( fieldYBasisInRobotSpace.times((-gamepad1.left_stick_x).toDouble()) ).times(driveSpeedMult),
             turnPower
         )
 

@@ -167,7 +167,10 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         get() {
             return imu.robotYawPitchRollAngles.getPitch(AngleUnit.RADIANS)
         }
-
+    val rawHeading: Double
+        get() {
+            return -imu.robotYawPitchRollAngles.getYaw(AngleUnit.RADIANS)
+        }
     /*
      * Code to run ONCE when the driver hits INIT
      */
