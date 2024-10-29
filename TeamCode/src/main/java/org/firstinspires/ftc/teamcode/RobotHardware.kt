@@ -16,12 +16,14 @@ import com.qualcomm.robotcore.hardware.VoltageSensor
 import org.firstinspires.ftc.robotcore.external.Telemetry
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit
 import org.firstinspires.ftc.teamcode.HardwareConstants.PIVOT_EXTENDED_KG
+import org.firstinspires.ftc.teamcode.HardwareConstants.PIVOT_KD
 import org.firstinspires.ftc.teamcode.HardwareConstants.PIVOT_KI
 import org.firstinspires.ftc.teamcode.HardwareConstants.PIVOT_KP
 import org.firstinspires.ftc.teamcode.HardwareConstants.PIVOT_KS
 import org.firstinspires.ftc.teamcode.HardwareConstants.PIVOT_RETRACTED_KG
 import org.firstinspires.ftc.teamcode.HardwareConstants.PIVOT_TICKS_PER_RAD
 import org.firstinspires.ftc.teamcode.HardwareConstants.SLIDES_EXTENDED_KG
+import org.firstinspires.ftc.teamcode.HardwareConstants.SLIDES_KD
 import org.firstinspires.ftc.teamcode.HardwareConstants.SLIDES_KI
 import org.firstinspires.ftc.teamcode.HardwareConstants.SLIDES_KP
 import org.firstinspires.ftc.teamcode.HardwareConstants.SLIDES_KS
@@ -51,8 +53,10 @@ import kotlin.math.sin
     // all PID gains are in units of volts/rad
     @JvmField var PIVOT_KP = 12.0;
     @JvmField var PIVOT_KI = 4.0;
+    @JvmField var PIVOT_KD = 0.0;
     @JvmField var SLIDES_KP = 50.0;
     @JvmField var SLIDES_KI = 10.0;
+    @JvmField var SLIDES_KD = 0.0;
 
     @JvmField var WRIST_UNITS_PER_RAD = 0.4 / (2 * PI) /2; // 2 units per 5 revolutions times 1 rev per 2pi radians (divided by 2 again for some reason)
     @JvmField var WRIST_PITCH_OFFSET = 15.2;
@@ -138,6 +142,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         ::getCurrentPivotAngle,
         PIVOT_KP,
         PIVOT_KI,
+        PIVOT_KD,
         PIVOT_KS,
         { cos(getCurrentPivotAngle()) * lerp(PIVOT_RETRACTED_KG, PIVOT_EXTENDED_KG, getCurrentSlideExtension()) }
     )
@@ -147,6 +152,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         ::getCurrentSlideExtension,
         SLIDES_KP,
         SLIDES_KI,
+        SLIDES_KD,
         SLIDES_KS,
         { sin(getCurrentPivotAngle()) * lerp(SLIDES_RETRACTED_KG, SLIDES_EXTENDED_KG, getCurrentSlideExtension()) }
     )
