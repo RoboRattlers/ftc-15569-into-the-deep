@@ -346,9 +346,9 @@ class RushedTeleOp : OpMode() {
         if (currentGamepadState.right_bumper && !lastGamepadState.right_bumper && mayUseHeadingPID) {
             val nearestAngleDiff = wrapAngle( MathUtils.round(hardware.currentHeading, PI/2) - hardware.currentHeading)
             if (nearestAngleDiff > ANGLE_SNAP_THRESHOLD  && useHeadingPID == false) {
-                targetHeading = round(hardware.currentHeading)
+                targetHeading = round(hardware.currentHeading, PI/2)
             } else {
-                targetHeading = round(hardware.currentHeading + PI/2)
+                targetHeading = round(hardware.currentHeading + PI/2, PI/2)
             }
             useHeadingPID = true
         }
@@ -356,10 +356,10 @@ class RushedTeleOp : OpMode() {
         if (currentGamepadState.left_bumper && !lastGamepadState.left_bumper && mayUseHeadingPID) {
 
             val nearestAngleDiff = wrapAngle( MathUtils.round(hardware.currentHeading, PI/2) - hardware.currentHeading)
-            if (nearestAngleDiff < ANGLE_SNAP_THRESHOLD && useHeadingPID == false) {
-                targetHeading = round(hardware.currentHeading)
+            if (nearestAngleDiff < ANGLE_SNAP_THRESHOLD && !useHeadingPID) {
+                targetHeading = round(hardware.currentHeading, PI/2)
             } else {
-                targetHeading = round(hardware.currentHeading - PI/2)
+                targetHeading = round(hardware.currentHeading - PI/2, PI/2)
             }
             useHeadingPID = true
         }
@@ -370,7 +370,7 @@ class RushedTeleOp : OpMode() {
             hardware.zeroHeading = hardware.rawHeading
         }
 
-        val heading_kP = 0.4
+        val heading_kP = 0.9
         val turnPower = if (useHeadingPID)
             wrapAngle(targetHeading - hardware.currentHeading) * heading_kP
             else gamepad1.right_stick_x.toDouble()
