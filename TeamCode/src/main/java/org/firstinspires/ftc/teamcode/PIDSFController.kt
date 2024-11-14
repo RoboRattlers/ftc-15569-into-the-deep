@@ -11,6 +11,8 @@ data class ValTimePair(val value: Double, val time: Double)
 
 class PIDSFController(private var value: () -> Double,
                       var kP: Double,
+                      var minOutput: Double,
+                      var maxOutput: Double,
                       var kI: Double = 0.0,
                       var kD: Double = 0.0,
                       var kS: Double = 0.0,
@@ -43,7 +45,7 @@ class PIDSFController(private var value: () -> Double,
 
         accumulatedIntegralGain += error * deltaTime * kI
         accumulatedIntegralGain = clamp(accumulatedIntegralGain, -3.0, 3.0)
-        voltage = kP * error + kD * smoothDerivative + accumulatedIntegralGain + kS * sign(error) + (kF?.get() ?: 0.0)
+        voltage = clamp(kP * error + kD * smoothDerivative + accumulatedIntegralGain + kS * sign(error) + (kF?.get() ?: 0.0), minOutput, maxOutput)
     }
 
 }
