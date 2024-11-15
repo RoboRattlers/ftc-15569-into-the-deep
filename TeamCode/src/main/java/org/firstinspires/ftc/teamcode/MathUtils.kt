@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode
 
+import com.acmerobotics.roadrunner.clamp
 import kotlin.math.PI
 
 object MathUtils {
@@ -15,6 +16,11 @@ object MathUtils {
     fun wrapAngle(angle: Double): Double {
         var offsetAngle = (angle.rem( 2 * PI)  + 2 * PI).rem(2 * PI) + PI
         return offsetAngle.rem(2 * PI) - PI
+    }
+
+    fun mapRange(value: Double, oldMin: Double, oldMax: Double, newMin: Double, newMax: Double, clampValue: Boolean = false): Double {
+        var newValue = (value - oldMin) / (oldMax - oldMin) * (newMax - newMin) + newMin
+        return if (clampValue) clamp(newValue, newMin, newMax) else newValue
     }
 
 }
