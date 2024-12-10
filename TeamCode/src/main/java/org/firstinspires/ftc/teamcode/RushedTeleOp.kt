@@ -187,26 +187,23 @@ class RushedTeleOp : OpMode() {
                 driveSpeedMult = 0.6
 
                  if (currentGamepadState.right_trigger > 0.2) {
-                    hardware.wristPitch = -0.9
+                    hardware.wristPitch = -1.6
                     hardware.plungerRetracted = false
                     hardware.intakeSpeed = 1.0
-                     if (currentGamepadState.left_trigger > 0.2) {
-                         hardware.wristPitch = -1.7
-                     }
                 } else if (currentGamepadState.left_trigger > 0.2) {
                     hardware.plungerRetracted = true
                     hardware.intakeSpeed = -1.0
                 } else {
-                    hardware.wristPitch = -0.9
+                    hardware.wristPitch = -1.6
                     hardware.plungerRetracted = true
                     hardware.intakeSpeed = 0.0
                 }
 
                 if (currentGamepadState.right_stick_x > 0.8 && lastGamepadState.right_stick_x <= 0.8) {
-                    hardware.wristRoll = clamp(hardware.wristRoll - wristRollStep, -wristRollStep, wristRollStep)
+                    hardware.wristRoll = clamp(hardware.wristRoll - wristRollStep, -wristRollStep * 2, wristRollStep * 2)
                 }
                 if (currentGamepadState.right_stick_x < -0.8 && lastGamepadState.right_stick_x >= -0.8) {
-                    hardware.wristRoll = clamp(hardware.wristRoll + wristRollStep, -wristRollStep, wristRollStep)
+                    hardware.wristRoll = clamp(hardware.wristRoll + wristRollStep, -wristRollStep * 2, wristRollStep * 2)
                 }
 
                 if (abs(currentGamepadState.right_stick_y) > 0.2 ) {
@@ -244,7 +241,7 @@ class RushedTeleOp : OpMode() {
                 hardware.targetSlideExtension = if (hardware.getCurrentPivotAngle() > 1.2)
                     scoreHeights[scoreHeightIndex]
                     else 0.0
-                hardware.targetPivotAngle = PI/2 * 1.1
+                hardware.targetPivotAngle = PI/2
 
                 telemetry.addData("num score heights", scoreHeights.size)
                 telemetry.update()
@@ -370,7 +367,7 @@ class RushedTeleOp : OpMode() {
             hardware.zeroHeading = hardware.rawHeading
         }
 
-        val heading_kP = 0.9
+        val heading_kP = 0.5
         val turnPower = if (useHeadingPID)
             wrapAngle(targetHeading - hardware.currentHeading) * heading_kP
             else gamepad1.right_stick_x.toDouble()

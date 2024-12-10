@@ -41,7 +41,7 @@ import kotlin.math.sin
 @Config object HardwareConstants {
 
     @JvmField var SLIDES_TICKS_IN_EXTENSION = 2900.0;
-    val PIVOT_TICKS_PER_RAD = 2786.2 / (2 * PI);
+    val PIVOT_TICKS_PER_RAD = 2786.2 / (28/10); // motor output ticks per rev / 2pi rads per rev /
 
     @JvmField var SLIDES_KS = 0.6;
     @JvmField var SLIDES_RETRACTED_KG = 0.0;
@@ -52,18 +52,18 @@ import kotlin.math.sin
 
     // all PID gains are in units of volts/rad
     @JvmField var PIVOT_KP = 12.0;
-    @JvmField var PIVOT_KI = 4.0;
+    @JvmField var PIVOT_KI = 2.0;
     @JvmField var PIVOT_KD = 0.0;
     @JvmField var SLIDES_KP = 50.0;
     @JvmField var SLIDES_KI = 10.0;
     @JvmField var SLIDES_KD = 0.0;
 
-    @JvmField var WRIST_UNITS_PER_RAD = 0.4 / (2 * PI) /2; // 2 units per 5 revolutions times 1 rev per 2pi radians (divided by 2 again for some reason)
-    @JvmField var WRIST_PITCH_OFFSET = 15.2;
-    @JvmField var WRIST_ROLL_OFFSET = -6.4;
+    @JvmField var WRIST_UNITS_PER_RAD = 0.4 / (2 * PI) / 2; // 2 units per 5 revolutions times 1 rev per 2pi radians (divided by 2 again for some reason)
+    @JvmField var WRIST_PITCH_OFFSET = 15.5;
+    @JvmField var WRIST_ROLL_OFFSET = 0.0;
 
-    @JvmField var PLUNGER_RETRACTED_POS = 1.0;
-    @JvmField var PLUNGER_EXTENDED_POS = 0.05;
+    @JvmField var PLUNGER_RETRACTED_POS = 0.5;
+    @JvmField var PLUNGER_EXTENDED_POS = 0.0;
 
 }
 
@@ -141,6 +141,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     private val PivotController = PIDSFController(
         ::getCurrentPivotAngle,
         PIVOT_KP,
+        -10.0, 10.0,
         PIVOT_KI,
         PIVOT_KD,
         PIVOT_KS,
@@ -151,6 +152,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     private val SlidesController = PIDSFController(
         ::getCurrentSlideExtension,
         SLIDES_KP,
+        -10.0, 10.0,
         SLIDES_KI,
         SLIDES_KD,
         SLIDES_KS,
@@ -214,8 +216,8 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         rightDiffy.direction = Servo.Direction.FORWARD
 
         // + -> intake
-        leftIntake.direction = DcMotorSimple.Direction.FORWARD
-        rightIntake.direction = DcMotorSimple.Direction.REVERSE
+        leftIntake.direction = DcMotorSimple.Direction.REVERSE
+        rightIntake.direction = DcMotorSimple.Direction.FORWARD
 
         imu.initialize(
             IMU.Parameters(
@@ -233,7 +235,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     fun update() {
 
         // apply bounds to pivot and extension
-        targetPivotAngle = clamp(targetPivotAngle, 0.2, PI/2 * 1.1)
+        targetPivotAngle = clamp(targetPivotAngle, 0.0, PI/2 * 1.1)
         targetSlideExtension = clamp(targetSlideExtension, 0.01, 1.0)
         PivotController.kP = PIVOT_KP
         PivotController.kI = PIVOT_KI
@@ -278,10 +280,10 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
             frontLeftPower *= normalizationFactor
         }
 
-        frontRightDrive.power = voltageToPower(frontRightPower * 12)
-        backRightDrive.power = voltageToPower(backRightPower * 12)
-        backLeftDrive.power = voltageToPower(backLeftPower * 12)
-        frontLeftDrive.power = voltageToPower(frontLeftPower * 12)
+        frontRightDrive.power = voltageToPower(frontRightPower * 10)
+        backRightDrive.power = voltageToPower(backRightPower * 10)
+        backLeftDrive.power = voltageToPower(backLeftPower * 10)
+        frontLeftDrive.power = voltageToPower(frontLeftPower * 10)
 
 
     }
