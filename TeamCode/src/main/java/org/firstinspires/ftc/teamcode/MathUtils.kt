@@ -23,4 +23,8 @@ object MathUtils {
         return if (clampValue) clamp(newValue, newMin, newMax) else newValue
     }
 
+    fun clampInt(value: Int, min: Int, max: Int): Int {
+        return if (value < min) min else if (value > max) max else value
+    }
+
 }
