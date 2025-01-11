@@ -26,7 +26,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.firstinspires.ftc.teamcode
+package org.firstinspires.ftc.teamcode.opmodes.comp
 
 import com.acmerobotics.roadrunner.PoseVelocity2d
 import com.acmerobotics.roadrunner.Vector2d
@@ -34,9 +34,11 @@ import com.acmerobotics.roadrunner.clamp
 import com.qualcomm.robotcore.eventloop.opmode.OpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.util.ElapsedTime
-import org.firstinspires.ftc.teamcode.MathUtils.clampInt
-import org.firstinspires.ftc.teamcode.MathUtils.round
-import org.firstinspires.ftc.teamcode.MathUtils.wrapAngle
+import org.firstinspires.ftc.teamcode.util.GamepadEx
+import org.firstinspires.ftc.teamcode.util.MathUtils.clampInt
+import org.firstinspires.ftc.teamcode.util.MathUtils.round
+import org.firstinspires.ftc.teamcode.util.MathUtils.wrapAngle
+import org.firstinspires.ftc.teamcode.util.RobotHardware
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
