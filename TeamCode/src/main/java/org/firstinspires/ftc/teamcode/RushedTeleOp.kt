@@ -56,6 +56,8 @@ import kotlin.math.sin
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
+fun Boolean.toInt() = if (this) 1 else 0
+
 enum class TeleOpState {
     INTAKING,
     DRIVING,
@@ -83,12 +85,15 @@ class RushedTeleOp : OpMode() {
             field = value
         }
 
-    private var gamepad1Ex = GamepadEx(gamepad1)
+    private var driver1 = GamepadEx(gamepad1)
+    private var driver2 = GamepadEx(gamepad2)
+
     private var driveSpeedMult = 1.0
-    private var justSwitchedState = true
     private var mayUseHeadingPID = true
     private var useHeadingPID = false
     private var targetHeading = 0.0
+
+    private var justSwitchedState = true
 
     private var climbing = false
 
@@ -121,10 +126,8 @@ class RushedTeleOp : OpMode() {
         var deltaTime = runtime.seconds() - lastUpdateTime
         lastUpdateTime = runtime.seconds()
 
-        gamepad1Ex.update()
+        driver1.update()
         val removeJustSwitchedStateLater = justSwitchedState
-
-        // TODO: bring all non-continuous actuators to their zero positions
 
         when (state) {
             TeleOpState.DRIVING -> {
@@ -138,23 +141,23 @@ class RushedTeleOp : OpMode() {
                 mayUseHeadingPID = true
                 useHeadingPID = false
 
-                if ( gamepad1Ex.right_stick_x isOver 0.2 ) {
+                if ( driver1.right_stick_x isOver 0.2 ) {
                     useHeadingPID = false
                 }
 
                 if (hardware.getCurrentSlideExtension() < 0.15) {
                     driveSpeedMult = 1.0
-                    if (gamepad1Ex.dpad_down.wasPressed) {
+                    if (driver1.dpad_down.wasPressed) {
                         state = TeleOpState.INTAKING
                     }
                 } else {
                     driveSpeedMult = 0.5
                 }
 
-                if (gamepad1Ex.dpad_up.wasPressed) {
+                if (driver1.dpad_up.wasPressed || driver2.dpad_up.wasPressed) {
                     state = TeleOpState.SCORING
                 }
-                if (gamepad1Ex.right_trigger.wasPressed(0.5)) {
+                if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_1_START
                 }
 
@@ -176,11 +179,11 @@ class RushedTeleOp : OpMode() {
 
                 driveSpeedMult = 0.6
 
-                 if (gamepad1Ex.right_trigger isOver 0.2) {
+                 if (driver1.right_trigger isOver 0.2) {
                     hardware.wristPitch = -1.6
                     hardware.plungerRetracted = false
                     hardware.intakeSpeed = 1.0
-                } else if (gamepad1Ex.left_trigger isOver 0.2) {
+                } else if (driver1.left_trigger isOver 0.2) {
                     hardware.plungerRetracted = true
                     hardware.intakeSpeed = -1.0
                 } else {
@@ -189,15 +192,20 @@ class RushedTeleOp : OpMode() {
                     hardware.intakeSpeed = 0.0
                 }
 
-                if (gamepad1Ex.right_stick_x.wasPressed(0.8)) {
-                    hardware.wristRoll = clamp(hardware.wristRoll + wristRollStep * Math.signum(gamepad1Ex.right_stick_x.value), -wristRollStep * 2, wristRollStep * 2)
+                if (driver1.right_stick_button.wasPressed || driver1.left_stick_button.wasPressed
+                    || driver2.right_stick_button.wasPressed || driver2.left_stick_button.wasPressed ) {
+                    val delta = driver1.right_stick_button.value.toInt() +
+                            driver2.right_stick_button.value.toInt() -
+                            driver1.left_stick_button.value.toInt() -
+                            driver2.left_stick_button.value.toInt()
+                    hardware.wristRoll = clamp(hardware.wristRoll + wristRollStep * delta.toDouble(), -wristRollStep * 2.0, wristRollStep * 2.0)
                 }
 
-                if (gamepad1Ex.right_stick_y isOver 0.2) {
-                    hardware.targetSlideExtension -= Math.pow(gamepad1Ex.right_stick_y.value, 3.0) * deltaTime
+                if (driver1.right_stick_y isOver 0.2) {
+                    hardware.targetSlideExtension -= Math.pow(driver1.right_stick_y.value, 3.0) * deltaTime
                 }
 
-                if (gamepad1Ex.dpad_up.wasPressed) {
+                if (driver1.dpad_up.wasPressed || driver2.dpad_up.wasPressed) {
                     state = TeleOpState.DRIVING
                 }
 
@@ -221,15 +229,15 @@ class RushedTeleOp : OpMode() {
                 telemetry.addData("num score heights", scoreHeights.size)
                 telemetry.update()
 
-                val deltaIndex = (if (gamepad1Ex.right_bumper.value) 1 else 0 ) - (if (gamepad1Ex.left_bumper.value) 1 else 0);
+                val deltaIndex = (if (driver1.right_bumper.value) 1 else 0 ) - (if (driver1.left_bumper.value) 1 else 0);
                 scoreHeightIndex = clampInt(scoreHeightIndex + deltaIndex, 0, scoreHeights.size - 1)
 
                 driveSpeedMult = 0.5
 
-                hardware.intakeSpeed = -gamepad1Ex.left_trigger.value * 0.5
-                hardware.intakeSpin = gamepad1Ex.right_trigger.value
+                hardware.intakeSpeed = -driver1.left_trigger.value * 0.5
+                hardware.intakeSpin = driver1.right_trigger.value
 
-                if (gamepad1Ex.dpad_down.wasPressed) {
+                if (driver1.dpad_down.wasPressed || driver2.dpad_down.wasPressed) {
                     state = TeleOpState.DRIVING
                 }
 
@@ -244,40 +252,41 @@ class RushedTeleOp : OpMode() {
                 useHeadingPID = false
                 driveSpeedMult = 1.0
 
-                if (gamepad1Ex.right_trigger.wasPressed(0.5)) {
+                if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_1_OVEREXTEND
                 }
-                if (gamepad1Ex.left_trigger.wasPressed(0.5)) {
+                if (driver1.left_trigger.wasPressed(0.5)) {
                     state = TeleOpState.DRIVING
                 }
             }
             TeleOpState.CLIMB_1_OVEREXTEND -> {
                 hardware.targetSlideExtension = 0.35
                 hardware.targetPivotAngle = 1.6
+                climbing = true
                 driveSpeedMult = 0.0
 
-                if (gamepad1Ex.right_trigger.wasPressed(0.5)) {
+                if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_1_RETRACT
-                } else if (gamepad1Ex.left_trigger.wasPressed(0.5)) {
+                } else if (driver1.left_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_1_START
                 }
             }
             TeleOpState.CLIMB_1_RETRACT -> {
                 hardware.targetSlideExtension = -0.1
-                if (gamepad1Ex.right_trigger.wasPressed(0.5)) {
+                if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_START
                 }
             }
             TeleOpState.CLIMB_2_START -> {
                 hardware.targetSlideExtension = 0.6
                 hardware.targetPivotAngle = 1.2
-                if (gamepad1Ex.right_trigger.wasPressed(0.5)) {
+                if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_OVEREXTEND
                 }
             }
             TeleOpState.CLIMB_2_OVEREXTEND -> {
                 hardware.targetPivotAngle = 2.3
-                if (gamepad1Ex.right_trigger.wasPressed(0.5)) {
+                if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_RETRACT
                 }
             }
@@ -294,7 +303,7 @@ class RushedTeleOp : OpMode() {
 
         val ANGLE_SNAP_THRESHOLD = Math.toRadians(5.0);
 
-        if (gamepad1Ex.right_bumper.wasPressed && mayUseHeadingPID) {
+        if (driver1.right_bumper.wasPressed && mayUseHeadingPID) {
             val nearestAngleDiff = wrapAngle( round(hardware.currentHeading, PI/2) - hardware.currentHeading)
             if (nearestAngleDiff > ANGLE_SNAP_THRESHOLD && !useHeadingPID) {
                 targetHeading = round(hardware.currentHeading, PI/2)
@@ -304,7 +313,7 @@ class RushedTeleOp : OpMode() {
             useHeadingPID = true
         }
 
-        if (gamepad1Ex.left_bumper.wasPressed && mayUseHeadingPID) {
+        if (driver1.left_bumper.wasPressed && mayUseHeadingPID) {
 
             val nearestAngleDiff = wrapAngle( round(hardware.currentHeading, PI/2) - hardware.currentHeading)
             if (nearestAngleDiff < ANGLE_SNAP_THRESHOLD && !useHeadingPID) {
@@ -316,7 +325,7 @@ class RushedTeleOp : OpMode() {
         }
 
         //set zero heading
-        if (gamepad1Ex.b.wasPressed) {
+        if (driver1.b.wasPressed) {
             targetHeading -= hardware.rawHeading
             hardware.zeroHeading = hardware.rawHeading
         }
