@@ -43,18 +43,18 @@ import kotlin.math.sin
     @JvmField var SLIDES_TICKS_IN_EXTENSION = 2900.0;
     val PIVOT_TICKS_PER_RAD = 2786.2 / (28/10); // motor output ticks per rev / 2pi rads per rev /
 
-    @JvmField var SLIDES_KS = 0.6;
+    @JvmField var SLIDES_KS = 1.0;
     @JvmField var SLIDES_RETRACTED_KG = 0.0;
     @JvmField var SLIDES_EXTENDED_KG = 0.0;
-    @JvmField var PIVOT_KS = 0.5;
+    @JvmField var PIVOT_KS = 0.6;
     @JvmField var PIVOT_RETRACTED_KG = 0.0;
     @JvmField var PIVOT_EXTENDED_KG = 0.0;
 
     // all PID gains are in units of volts/rad
-    @JvmField var PIVOT_KP = 12.0;
+    @JvmField var PIVOT_KP = 20.0;
     @JvmField var PIVOT_KI = 2.0;
     @JvmField var PIVOT_KD = 0.0;
-    @JvmField var SLIDES_KP = 50.0;
+    @JvmField var SLIDES_KP = 250.0;
     @JvmField var SLIDES_KI = 10.0;
     @JvmField var SLIDES_KD = 0.0;
 
@@ -235,8 +235,8 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     fun update() {
 
         // apply bounds to pivot and extension
-        targetPivotAngle = clamp(targetPivotAngle, 0.0, PI/2 * 1.1)
-        targetSlideExtension = clamp(targetSlideExtension, 0.01, 1.0)
+        targetPivotAngle = clamp(targetPivotAngle, 0.0, PI)
+        targetSlideExtension = clamp(targetSlideExtension, -0.05, 1.0)
         PivotController.kP = PIVOT_KP
         PivotController.kI = PIVOT_KI
         PivotController.kS = PIVOT_KS
@@ -259,7 +259,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
 
         plunger.position = if (plungerRetracted) HardwareConstants.PLUNGER_RETRACTED_POS else HardwareConstants.PLUNGER_EXTENDED_POS
         rightIntake.power = intakeSpeed + intakeSpin;
-        leftIntake.power = intakeSpeed - intakeSpin;
+        leftIntake.power = intakeSpeed - intakeSpin * 0.25;
 
         // I hate the FTC coordinate system
         var fwd = driveCommand.linearVel.x
