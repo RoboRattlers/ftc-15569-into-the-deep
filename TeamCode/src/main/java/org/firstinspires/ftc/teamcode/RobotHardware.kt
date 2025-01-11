@@ -56,7 +56,7 @@ import kotlin.math.sin
     @JvmField var PIVOT_KD = 0.0;
     @JvmField var SLIDES_KP = 250.0;
     @JvmField var SLIDES_KI = 10.0;
-    @JvmField var SLIDES_KD = 0.0;
+    @JvmField var SLIDES_KD = 2.0;
 
     @JvmField var WRIST_UNITS_PER_RAD = 0.4 / (2 * PI) / 2; // 2 units per 5 revolutions times 1 rev per 2pi radians (divided by 2 again for some reason)
     @JvmField var WRIST_PITCH_OFFSET = 15.5;
