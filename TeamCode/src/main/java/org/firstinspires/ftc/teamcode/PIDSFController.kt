@@ -45,7 +45,7 @@ class PIDSFController(private var value: () -> Double,
 
         accumulatedIntegralGain += error * deltaTime * kI
         accumulatedIntegralGain = clamp(accumulatedIntegralGain, -3.0, 3.0)
-        voltage = clamp(kP * error + kD * smoothDerivative + accumulatedIntegralGain + kS * sign(error) + (kF?.get() ?: 0.0), minOutput, maxOutput)
+        voltage = clamp(kP * error + kD * noisyDerivative + accumulatedIntegralGain + kS * sign(error) + (kF?.get() ?: 0.0), minOutput, maxOutput)
     }
 
 }
