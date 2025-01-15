@@ -69,7 +69,12 @@ enum class TeleOpState {
     CLIMB_1_RETRACT,
     CLIMB_2_START,
     CLIMB_2_OVEREXTEND,
-    CLIMB_2_RETRACT
+    CLIMB_2_RETRACT,
+    CLIMB_2_START_0,
+    CLIMB_2_START_1,
+    CLIMB_2_START_2,
+    CLIMB_2_START_AGAIN,
+    CLIMB_2_RETRACT_1
 }
 
 @TeleOp(name = "Rushed TeleOp", group = "Iterative OpMode")
@@ -87,8 +92,8 @@ class RushedTeleOp : OpMode() {
             field = value
         }
 
-    private var driver1 = GamepadEx(gamepad1)
-    private var driver2 = GamepadEx(gamepad2)
+    private lateinit var driver1: GamepadEx
+    private lateinit var driver2: GamepadEx
 
     private var driveSpeedMult = 1.0
     private var mayUseHeadingPID = true
@@ -100,7 +105,7 @@ class RushedTeleOp : OpMode() {
     private var climbing = false
 
     private var scoreHeightIndex = 0
-    private val scoreHeights = arrayOf(0.25, 0.35, 0.5, 0.75, 0.92)
+    private val scoreHeights = arrayOf(0.1, 0.4, 0.45, 0.65, 0.95)
 
     /*
      * Code to run REPEATEDLY after the driver hits INIT, but before they hit START
@@ -108,6 +113,8 @@ class RushedTeleOp : OpMode() {
     override fun init() {
         hardware = RobotHardware(hardwareMap, telemetry)
         hardware.init();
+        driver1 = GamepadEx(gamepad1)
+        driver2 = GamepadEx(gamepad2)
     }
 
     override fun init_loop() {
@@ -129,6 +136,7 @@ class RushedTeleOp : OpMode() {
         lastUpdateTime = runtime.seconds()
 
         driver1.update()
+        driver2.update()
         val removeJustSwitchedStateLater = justSwitchedState
 
         when (state) {
@@ -149,7 +157,7 @@ class RushedTeleOp : OpMode() {
 
                 if (hardware.getCurrentSlideExtension() < 0.15) {
                     driveSpeedMult = 1.0
-                    if (driver1.dpad_down.wasPressed) {
+                    if (driver1.dpad_down.wasPressed || driver2.dpad_down.wasPressed) {
                         state = TeleOpState.INTAKING
                     }
                 } else {
@@ -169,27 +177,25 @@ class RushedTeleOp : OpMode() {
                 val wristRollStep = 1.5
                 if (justSwitchedState) {
                     hardware.plungerRetracted = true
-                    hardware.targetPivotAngle = 0.0
-                    hardware.targetSlideExtension = 0.25
                     hardware.wristRoll = 0.0
-                    hardware.wristPitch = -1.4
-
+                    hardware.wristPitch = -2.0
+                    hardware.targetPivotAngle = 0.0
+                    hardware.targetSlideExtension = 0.1
                     mayUseHeadingPID = true
                     useHeadingPID = true
                     targetHeading = round(hardware.currentHeading, PI/2)
                 }
 
+                hardware.targetPivotAngle = hardware.getCurrentSlideExtension() * 0.3;
                 driveSpeedMult = 0.6
 
                  if (driver1.right_trigger isOver 0.2) {
-                    hardware.wristPitch = -1.6
                     hardware.plungerRetracted = false
                     hardware.intakeSpeed = 1.0
                 } else if (driver1.left_trigger isOver 0.2) {
                     hardware.plungerRetracted = true
                     hardware.intakeSpeed = -1.0
                 } else {
-                    hardware.wristPitch = -1.6
                     hardware.plungerRetracted = true
                     hardware.intakeSpeed = 0.0
                 }
@@ -200,11 +206,12 @@ class RushedTeleOp : OpMode() {
                             driver2.right_stick_button.value.toInt() -
                             driver1.left_stick_button.value.toInt() -
                             driver2.left_stick_button.value.toInt()
-                    hardware.wristRoll = clamp(hardware.wristRoll + wristRollStep * delta.toDouble(), -wristRollStep * 2.0, wristRollStep * 2.0)
+                    hardware.wristRoll = clamp(hardware.wristRoll - wristRollStep * delta.toDouble(), -wristRollStep * 2.0, wristRollStep * 2.0)
                 }
 
                 if (driver1.right_stick_y isOver 0.2) {
                     hardware.targetSlideExtension -= Math.pow(driver1.right_stick_y.value, 3.0) * deltaTime
+                    hardware.targetSlideExtension = clamp(hardware.targetSlideExtension, 0.0, 0.6)
                 }
 
                 if (driver1.dpad_up.wasPressed || driver2.dpad_up.wasPressed) {
@@ -221,22 +228,25 @@ class RushedTeleOp : OpMode() {
                 }
 
                 hardware.wristRoll = 0.0
-                hardware.wristPitch = 1.7
+                hardware.wristPitch = if (scoreHeightIndex == scoreHeights.size - 1) 2.2 else 0.2
                 hardware.plungerRetracted = false
                 hardware.targetSlideExtension = if (hardware.getCurrentPivotAngle() > 1.2)
                     scoreHeights[scoreHeightIndex]
                     else 0.0
-                hardware.targetPivotAngle = PI/2
+                hardware.targetPivotAngle = 1.35
 
                 telemetry.addData("num score heights", scoreHeights.size)
                 telemetry.update()
 
-                val deltaIndex = (if (driver1.right_bumper.value) 1 else 0 ) - (if (driver1.left_bumper.value) 1 else 0);
+                val deltaIndex = driver1.right_bumper.wasPressed.toInt() +
+                        driver2.right_bumper.wasPressed.toInt() -
+                        driver1.left_bumper.wasPressed.toInt() -
+                        driver2.left_bumper.wasPressed.toInt()
                 scoreHeightIndex = clampInt(scoreHeightIndex + deltaIndex, 0, scoreHeights.size - 1)
 
-                driveSpeedMult = 0.5
+                driveSpeedMult = 0.4
 
-                hardware.intakeSpeed = -driver1.left_trigger.value * 0.5
+                hardware.intakeSpeed = -driver1.left_trigger.value * 0.5 + (if (driver1.right_stick_button.value) 1.0 else 0.0)
                 hardware.intakeSpin = driver1.right_trigger.value
 
                 if (driver1.dpad_down.wasPressed || driver2.dpad_down.wasPressed) {
@@ -276,17 +286,44 @@ class RushedTeleOp : OpMode() {
             TeleOpState.CLIMB_1_RETRACT -> {
                 hardware.targetSlideExtension = -0.1
                 if (driver1.right_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_2_START_0
+                }
+            }
+            TeleOpState.CLIMB_2_START_0 -> {
+                hardware.targetPivotAngle = 2.3
+                hardware.wristPitch = 1.5
+                if (driver1.right_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_2_START_1
+                }
+            }
+            TeleOpState.CLIMB_2_START_1 -> {
+                hardware.targetPivotAngle = 0.6
+                if (driver1.right_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_2_START_2
+                }
+            }
+            TeleOpState.CLIMB_2_START_2 -> {
+                hardware.targetPivotAngle = 2.4
+                if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_START
                 }
             }
             TeleOpState.CLIMB_2_START -> {
-                hardware.targetSlideExtension = 0.6
+                hardware.targetSlideExtension = 0.1
+                hardware.wristPitch = -1.5
+                if (driver1.right_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_2_START_AGAIN
+                }
+            }
+            TeleOpState.CLIMB_2_START_AGAIN -> {
                 hardware.targetPivotAngle = 1.2
+                hardware.targetSlideExtension = 0.6
                 if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_OVEREXTEND
                 }
             }
             TeleOpState.CLIMB_2_OVEREXTEND -> {
+                hardware.wristPitch = 1.5
                 hardware.targetPivotAngle = 2.3
                 if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_RETRACT
@@ -296,6 +333,19 @@ class RushedTeleOp : OpMode() {
                 hardware.targetSlideExtension = -0.1
                 if (hardware.getCurrentSlideExtension() < 0.2) {
                     hardware.targetPivotAngle = 0.5
+                }
+                if (driver1.right_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_2_RETRACT_1
+                }
+            }
+            TeleOpState.CLIMB_2_RETRACT_1 -> {
+                hardware.targetSlideExtension = -0.1
+                hardware.targetPivotAngle = 1.2
+                if (hardware.getCurrentSlideExtension() < 0.2) {
+                    hardware.targetPivotAngle = 0.5
+                }
+                if (driver1.right_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_2_RETRACT
                 }
             }
         }
