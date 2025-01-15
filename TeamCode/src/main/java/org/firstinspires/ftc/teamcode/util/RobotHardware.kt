@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.util
 
 import com.acmerobotics.dashboard.config.Config
+import com.acmerobotics.roadrunner.Action
 import com.acmerobotics.roadrunner.PoseVelocity2d
 import com.acmerobotics.roadrunner.Vector2d
 import com.acmerobotics.roadrunner.clamp
@@ -43,7 +44,7 @@ import kotlin.math.sin
     @JvmField var SLIDES_TICKS_IN_EXTENSION = 2900.0;
     val PIVOT_TICKS_PER_RAD = 2786.2 / (28/10); // motor output ticks per rev / 2pi rads per rev /
 
-    @JvmField var SLIDES_KS = 1.0;
+    @JvmField var SLIDES_KS = 0.75;
     @JvmField var SLIDES_RETRACTED_KG = 0.0;
     @JvmField var SLIDES_EXTENDED_KG = 0.0;
     @JvmField var PIVOT_KS = 0.6;
@@ -54,13 +55,13 @@ import kotlin.math.sin
     @JvmField var PIVOT_KP = 20.0;
     @JvmField var PIVOT_KI = 2.0;
     @JvmField var PIVOT_KD = 0.0;
-    @JvmField var SLIDES_KP = 250.0;
+    @JvmField var SLIDES_KP = 200.0;
     @JvmField var SLIDES_KI = 10.0;
-    @JvmField var SLIDES_KD = 2.0;
+    @JvmField var SLIDES_KD = 0.0;
 
     @JvmField var WRIST_UNITS_PER_RAD = 0.4 / (2 * PI) / 2; // 2 units per 5 revolutions times 1 rev per 2pi radians (divided by 2 again for some reason)
-    @JvmField var WRIST_PITCH_OFFSET = 15.5;
-    @JvmField var WRIST_ROLL_OFFSET = 0.0;
+    @JvmField var WRIST_PITCH_OFFSET = 15.0;
+    @JvmField var WRIST_ROLL_OFFSET = 2.0;
 
     @JvmField var PLUNGER_RETRACTED_POS = 0.5;
     @JvmField var PLUNGER_EXTENDED_POS = 0.0;
@@ -182,6 +183,20 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     /*
      * Code to run ONCE when the driver hits INIT
      */
+    fun pivotToAngleAction(angle: Double, tolerance: Double = 0.1): Action {
+        return Action {
+            targetPivotAngle = angle
+            return@Action Math.abs(getCurrentPivotAngle() - targetPivotAngle) > tolerance
+        }
+    }
+
+    fun slideToPosAction(pos: Double, tolerance: Double = 0.05): Action {
+        return Action {
+            targetSlideExtension = pos
+            return@Action Math.abs(getCurrentSlideExtension() - targetSlideExtension) > tolerance
+        }
+    }
+
     fun init() {
         val motors = hardwareMap.getAll(DcMotor::class.java)
         motors.forEach { motor -> motor.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER }
@@ -259,7 +274,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
 
         plunger.position = if (plungerRetracted) HardwareConstants.PLUNGER_RETRACTED_POS else HardwareConstants.PLUNGER_EXTENDED_POS
         rightIntake.power = intakeSpeed + intakeSpin;
-        leftIntake.power = intakeSpeed - intakeSpin * 0.25;
+        leftIntake.power = intakeSpeed - intakeSpin * 0.75;
 
         // I hate the FTC coordinate system
         var fwd = driveCommand.linearVel.x
