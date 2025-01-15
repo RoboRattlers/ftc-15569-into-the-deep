@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.util
 
+import com.acmerobotics.roadrunner.Pose2d
+import com.acmerobotics.roadrunner.Vector2d
 import com.acmerobotics.roadrunner.clamp
 import kotlin.math.PI
 
@@ -25,6 +27,23 @@ object MathUtils {
 
     fun clampInt(value: Int, min: Int, max: Int): Int {
         return if (value < min) min else if (value > max) max else value
+    }
+
+
+    fun gridToFieldCoords(x: Double, y: Double): Vector2d {
+        return Vector2d((x + 0.5) * 24, (y + 0.5) * 24 )
+    }
+
+    fun gridToFieldCoords(cell: Vector2d): Vector2d {
+        return gridToFieldCoords(cell.x, cell.y)
+    }
+
+    fun gridToFieldCoords(x: Double, y: Double, heading: Double): Pose2d {
+        return Pose2d(gridToFieldCoords(x, y), heading)
+    }
+
+    fun gridToFieldCoords(cell: Pose2d): Pose2d {
+        return Pose2d(gridToFieldCoords(cell.position.x, cell.position.y), cell.heading)
     }
 
 }
