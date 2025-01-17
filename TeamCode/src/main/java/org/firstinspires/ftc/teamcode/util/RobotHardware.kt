@@ -153,7 +153,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     private val SlidesController = PIDSFController(
         ::getCurrentSlideExtension,
         SLIDES_KP,
-        -10.0, 10.0,
+        -14.0, 14.0,
         SLIDES_KI,
         SLIDES_KD,
         SLIDES_KS,
