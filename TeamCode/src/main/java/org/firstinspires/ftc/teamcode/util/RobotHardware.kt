@@ -1,8 +1,11 @@
 package org.firstinspires.ftc.teamcode.util
 
 import com.acmerobotics.dashboard.config.Config
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket
 import com.acmerobotics.roadrunner.Action
+import com.acmerobotics.roadrunner.ParallelAction
 import com.acmerobotics.roadrunner.PoseVelocity2d
+import com.acmerobotics.roadrunner.SequentialAction
 import com.acmerobotics.roadrunner.Vector2d
 import com.acmerobotics.roadrunner.clamp
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot
@@ -14,6 +17,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap
 import com.qualcomm.robotcore.hardware.IMU
 import com.qualcomm.robotcore.hardware.Servo
 import com.qualcomm.robotcore.hardware.VoltageSensor
+import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.robotcore.external.Telemetry
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.PIVOT_EXTENDED_KG
@@ -36,6 +40,7 @@ import org.firstinspires.ftc.teamcode.util.HardwareConstants.WRIST_UNITS_PER_RAD
 import org.firstinspires.ftc.teamcode.util.MathUtils.lerp
 import java.lang.Double.max
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -61,10 +66,14 @@ import kotlin.math.sin
 
     @JvmField var WRIST_UNITS_PER_RAD = 0.4 / (2 * PI) / 2; // 2 units per 5 revolutions times 1 rev per 2pi radians (divided by 2 again for some reason)
     @JvmField var WRIST_PITCH_OFFSET = 15.0;
-    @JvmField var WRIST_ROLL_OFFSET = 2.0;
+    @JvmField var WRIST_ROLL_OFFSET = 4.0;
 
     @JvmField var PLUNGER_RETRACTED_POS = 0.5;
     @JvmField var PLUNGER_EXTENDED_POS = 0.0;
+
+    val CHASSIS_WIDTH = 15.0;
+    const val CHASSIS_LENGTH = 15.0;
+    const val DISTANCE_BETWEEN_CHASSIS_AND_WALL_AT_TILE_CENTER = (24.0 - CHASSIS_LENGTH)/2.0;
 
 }
 
@@ -75,6 +84,9 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     var intakeSpin = 0.0 // for rotating the game piece inside the end effector
     var plungerRetracted = false
 
+    var commandDrivetrain = true
+
+    var runtime = ElapsedTime()
     var targetPivotAngle = 0.0; // 0.0 when horizontal, pi/2 when vertical
     fun getCurrentPivotAngle(): Double {
         return rightPivot.currentPosition/ PIVOT_TICKS_PER_RAD
@@ -180,21 +192,68 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         get() {
             return -imu.robotYawPitchRollAngles.getYaw(AngleUnit.RADIANS)
         }
-    /*
-     * Code to run ONCE when the driver hits INIT
-     */
-    fun pivotToAngleAction(angle: Double, tolerance: Double = 0.1): Action {
+
+    fun pivotToAngleAction(angle: Double, tolerance: Double = 0.05): Action {
         return Action {
             targetPivotAngle = angle
-            return@Action Math.abs(getCurrentPivotAngle() - targetPivotAngle) > tolerance
+            return@Action abs(getCurrentPivotAngle() - targetPivotAngle) > tolerance
         }
     }
 
-    fun slideToPosAction(pos: Double, tolerance: Double = 0.05): Action {
+    fun slideToPosAction(pos: Double, tolerance: Double = 0.03): Action {
         return Action {
             targetSlideExtension = pos
-            return@Action Math.abs(getCurrentSlideExtension() - targetSlideExtension) > tolerance
+            return@Action abs(getCurrentSlideExtension() - targetSlideExtension) > tolerance
         }
+    }
+
+    private fun timedAction(func: (Boolean, TelemetryPacket) -> Boolean, timeout: Double): Action {
+        var startTime: Double = -1.0
+        return Action {
+            p: TelemetryPacket ->
+            if (startTime == -1.0) {
+                startTime = runtime.seconds()
+            }
+            val shouldRun = runtime.seconds() - startTime < timeout
+            return@Action func(shouldRun, p) && shouldRun
+        }
+
+    }
+
+    fun wristRollAction(angle: Double, timeout: Double): Action {
+        return timedAction({
+            shouldRun, p ->
+            wristRoll = angle
+            return@timedAction true
+        }, timeout)
+    }
+    fun wristPitchAction(angle: Double, timeout: Double): Action {
+        return timedAction({
+                shouldRun, p ->
+            wristPitch = angle
+            return@timedAction true
+        }, timeout)
+    }
+    fun intakeAction(speed: Double, timeout: Double): Action {
+        return timedAction({
+                shouldRun, p ->
+            intakeSpeed = if (shouldRun) speed else 0.0
+            return@timedAction true
+        }, timeout)
+    }
+    fun intakeSpinAction(speed: Double, timeout: Double): Action {
+        return timedAction({
+                shouldRun, p ->
+            intakeSpin = if (shouldRun) speed else 0.0
+            return@timedAction true
+        }, timeout)
+    }
+    fun plungerAction(retracted: Boolean, timeout: Double): Action {
+        return timedAction({
+                shouldRun, p ->
+            plungerRetracted = retracted
+            return@timedAction true
+        }, timeout)
     }
 
     fun init() {
@@ -242,6 +301,8 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
                 )
             )
         )
+
+        runtime.reset()
 
 
 
@@ -295,10 +356,12 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
             frontLeftPower *= normalizationFactor
         }
 
-        frontRightDrive.power = voltageToPower(frontRightPower * 10)
-        backRightDrive.power = voltageToPower(backRightPower * 10)
-        backLeftDrive.power = voltageToPower(backLeftPower * 10)
-        frontLeftDrive.power = voltageToPower(frontLeftPower * 10)
+        if (commandDrivetrain) {
+            frontRightDrive.power = voltageToPower(frontRightPower * 10)
+            backRightDrive.power = voltageToPower(backRightPower * 10)
+            backLeftDrive.power = voltageToPower(backLeftPower * 10)
+            frontLeftDrive.power = voltageToPower(frontLeftPower * 10)
+        }
 
 
     }
