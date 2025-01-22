@@ -56,7 +56,6 @@ import kotlin.math.sin
     @JvmField var PIVOT_RETRACTED_KG = 0.0;
     @JvmField var PIVOT_EXTENDED_KG = 0.0;
 
-    // all PID gains are in units of volts/rad
     @JvmField var PIVOT_KP = 20.0;
     @JvmField var PIVOT_KI = 2.0;
     @JvmField var PIVOT_KD = 0.0;
