@@ -385,14 +385,17 @@ class RushedTeleOp : OpMode() {
         val heading_kP = 0.5
         val turnPower = if (useHeadingPID)
             wrapAngle(targetHeading - hardware.currentHeading) * heading_kP
-            else gamepad1.right_stick_x.toDouble()
+            else Math.pow(gamepad1.right_stick_x.toDouble(), 3.0)
         var fieldXBasisInRobotSpace = Vector2d(cos(-hardware.currentHeading), sin(-hardware.currentHeading))
         var fieldYBasisInRobotSpace = Vector2d(sin(-hardware.currentHeading), -cos(-hardware.currentHeading))
 
+        var fwdCommand = Math.pow((-gamepad1.left_stick_y).toDouble(), 3.0)
+        var sideCommand = Math.pow((-gamepad1.left_stick_x).toDouble(), 3.0)
+
         hardware.driveCommand = if (climbing) PoseVelocity2d(Vector2d(0.0, 0.0), 0.0)
             else PoseVelocity2d(
-            fieldXBasisInRobotSpace.times((-gamepad1.left_stick_y).toDouble())
-                .plus( fieldYBasisInRobotSpace.times((-gamepad1.left_stick_x).toDouble()) ).times(driveSpeedMult),
+            fieldXBasisInRobotSpace.times( fwdCommand )
+                .plus( fieldYBasisInRobotSpace.times(sideCommand) ).times(driveSpeedMult),
             turnPower
         )
 
