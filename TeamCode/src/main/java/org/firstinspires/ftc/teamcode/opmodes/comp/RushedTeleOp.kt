@@ -105,7 +105,7 @@ class RushedTeleOp : OpMode() {
     private var climbing = false
 
     private var scoreHeightIndex = 0
-    private val scoreHeights = arrayOf(0.1, 0.4, 0.45, 0.65, 0.95)
+    private val scoreHeights = arrayOf(0.12, 0.16, 0.4, 0.73)
 
     /*
      * Code to run REPEATEDLY after the driver hits INIT, but before they hit START
@@ -228,7 +228,7 @@ class RushedTeleOp : OpMode() {
                 }
 
                 hardware.wristRoll = 0.0
-                hardware.wristPitch = if (scoreHeightIndex == scoreHeights.size - 1) 2.2 else 0.2
+                hardware.wristPitch = if (scoreHeightIndex == scoreHeights.size - 1) 0.4  else 0.4
                 hardware.plungerRetracted = false
                 hardware.targetSlideExtension = if (hardware.getCurrentPivotAngle() > 1.2)
                     scoreHeights[scoreHeightIndex]
