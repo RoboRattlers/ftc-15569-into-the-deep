@@ -39,7 +39,7 @@ class SampleThenLvl1Climb : LinearOpMode() {
 
         // in an ideal universe, these constraints would be individiually tuned for each step of the auto, but I don't feel like doing allat
         val slowDownConstraint = autoHelper.rampVelConstraint(MecanumDrive.PARAMS.maxWheelVel, 15.0, 0.0, 0.5) // used when going up
-        val speedUpConstraint = autoHelper.rampVelConstraint(15.0, MecanumDrive.PARAMS.maxWheelVel, 0.5, 1.0) // used when going down
+        val speedUpConstraint = autoHelper.rampVelConstraint(15.0, MecanumDrive.PARAMS.maxWheelVel, 0.2, 0.5) // used when going down
 
         waitForStart()
 
@@ -56,7 +56,7 @@ class SampleThenLvl1Climb : LinearOpMode() {
 
                     // place preload
                     .afterTime(0.1, autoHelper.readyToScoreInBasketAction())
-                    .splineToSplineHeading(gridToFieldCoords(0.15, 0.15, Math.PI / 4), 3 * Math.PI/4, slowDownConstraint)
+                    .splineToSplineHeading(gridToFieldCoords(0.17, 0.17, Math.PI / 4), 3 * Math.PI/4, slowDownConstraint)
                     .waitSeconds(0.0) // for some reason, RR doesn't wait for actions in the middle of the path to complete, so we have to do it ourselves
                     .stopAndAdd(hardware.intakeAction(-1.0, SCORING_OUTTAKE_TIMEOUT))
 
@@ -69,14 +69,13 @@ class SampleThenLvl1Climb : LinearOpMode() {
 
                     // place 2nd sample
                     .afterTime(0.0, autoHelper.readyToScoreInBasketAction())
-                    .splineToLinearHeading(gridToFieldCoords(0.15, 0.15, Math.PI / 4), -Math.PI/2, slowDownConstraint)
+                    .splineToLinearHeading(gridToFieldCoords(0.17, 0.17, Math.PI / 4), -Math.PI/2, slowDownConstraint)
                     .waitSeconds(0.0)
                     .stopAndAdd(hardware.intakeAction(-1.0, SCORING_OUTTAKE_TIMEOUT))
 
                     // lvl 1 ascent
                     .afterTime(0.0, hardware.slideToPosAction(0.0))
                     .splineToSplineHeading(gridToFieldCoords(1.7, 2.0, Math.PI), 0.0, speedUpConstraint)
-                    .stopAndAdd(hardware.pivotToAngleAction(1.5))
                     .build()
             )
         )
