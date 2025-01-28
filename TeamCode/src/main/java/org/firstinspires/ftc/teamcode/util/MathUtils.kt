@@ -3,7 +3,10 @@ package org.firstinspires.ftc.teamcode.util
 import com.acmerobotics.roadrunner.Pose2d
 import com.acmerobotics.roadrunner.Vector2d
 import com.acmerobotics.roadrunner.clamp
+import java.lang.Math.pow
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.sign
 
 object MathUtils {
 
@@ -44,6 +47,10 @@ object MathUtils {
 
     fun gridToFieldCoords(cell: Pose2d): Pose2d {
         return Pose2d(gridToFieldCoords(cell.position.x, cell.position.y), cell.heading)
+    }
+
+    fun powerCurve(num: Double, power: Double): Double {
+        return pow(abs(num), power) * sign(num)
     }
 
 }
