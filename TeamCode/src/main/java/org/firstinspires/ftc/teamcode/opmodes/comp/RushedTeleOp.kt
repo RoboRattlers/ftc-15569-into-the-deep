@@ -36,6 +36,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.util.GamepadEx
 import org.firstinspires.ftc.teamcode.util.MathUtils.clampInt
+import org.firstinspires.ftc.teamcode.util.MathUtils.powerCurve
 import org.firstinspires.ftc.teamcode.util.MathUtils.round
 import org.firstinspires.ftc.teamcode.util.MathUtils.wrapAngle
 import org.firstinspires.ftc.teamcode.util.RobotHardware
@@ -74,7 +75,8 @@ enum class TeleOpState {
     CLIMB_2_START_1,
     CLIMB_2_START_2,
     CLIMB_2_START_AGAIN,
-    CLIMB_2_RETRACT_1
+    CLIMB_2_RETRACT_1,
+    CLIMB_2_FINISH
 }
 
 @TeleOp(name = "Rushed TeleOp", group = "Iterative OpMode")
@@ -105,7 +107,7 @@ class RushedTeleOp : OpMode() {
     private var climbing = false
 
     private var scoreHeightIndex = 0
-    private val scoreHeights = arrayOf(0.12, 0.16, 0.4, 0.73)
+    private val scoreHeights = arrayOf(0.08, 0.12, 0.16, 0.4, 0.69)
 
     /*
      * Code to run REPEATEDLY after the driver hits INIT, but before they hit START
@@ -186,10 +188,11 @@ class RushedTeleOp : OpMode() {
                     targetHeading = round(hardware.currentHeading, PI/2)
                 }
 
-                hardware.targetPivotAngle = hardware.getCurrentSlideExtension() * 0.3;
+                hardware.targetPivotAngle = 0.1 + hardware.getCurrentSlideExtension() * 0.3;
                 driveSpeedMult = 0.6
 
                  if (driver1.right_trigger isOver 0.2) {
+                     hardware.targetPivotAngle = 0.0
                     hardware.plungerRetracted = false
                     hardware.intakeSpeed = 1.0
                 } else if (driver1.left_trigger isOver 0.2) {
@@ -211,7 +214,7 @@ class RushedTeleOp : OpMode() {
 
                 if (driver1.right_stick_y isOver 0.2) {
                     hardware.targetSlideExtension -= Math.pow(driver1.right_stick_y.value, 3.0) * deltaTime
-                    hardware.targetSlideExtension = clamp(hardware.targetSlideExtension, 0.0, 0.6)
+                    hardware.targetSlideExtension = clamp(hardware.targetSlideExtension, 0.0, 0.5)
                 }
 
                 if (driver1.dpad_up.wasPressed || driver2.dpad_up.wasPressed) {
@@ -285,8 +288,9 @@ class RushedTeleOp : OpMode() {
             }
             TeleOpState.CLIMB_1_RETRACT -> {
                 hardware.targetSlideExtension = -0.1
+                hardware.targetPivotAngle = 1.0
                 if (driver1.right_trigger.wasPressed(0.5)) {
-                    state = TeleOpState.CLIMB_2_START_0
+                    state = TeleOpState.CLIMB_2_START_2
                 }
             }
             TeleOpState.CLIMB_2_START_0 -> {
@@ -303,7 +307,7 @@ class RushedTeleOp : OpMode() {
                 }
             }
             TeleOpState.CLIMB_2_START_2 -> {
-                hardware.targetPivotAngle = 2.4
+                hardware.targetPivotAngle = 2.0
                 if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_START
                 }
@@ -316,7 +320,7 @@ class RushedTeleOp : OpMode() {
                 }
             }
             TeleOpState.CLIMB_2_START_AGAIN -> {
-                hardware.targetPivotAngle = 1.2
+                hardware.targetPivotAngle = 1.6
                 hardware.targetSlideExtension = 0.6
                 if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_OVEREXTEND
@@ -324,7 +328,7 @@ class RushedTeleOp : OpMode() {
             }
             TeleOpState.CLIMB_2_OVEREXTEND -> {
                 hardware.wristPitch = 1.5
-                hardware.targetPivotAngle = 2.3
+                hardware.targetPivotAngle = 2.2
                 if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_RETRACT
                 }
@@ -332,21 +336,27 @@ class RushedTeleOp : OpMode() {
             TeleOpState.CLIMB_2_RETRACT -> {
                 hardware.targetSlideExtension = -0.1
                 if (hardware.getCurrentSlideExtension() < 0.2) {
-                    hardware.targetPivotAngle = 0.5
+                    hardware.targetPivotAngle = 1.9
+                } else {
+                    hardware.targetPivotAngle = 2.5
                 }
                 if (driver1.right_trigger.wasPressed(0.5)) {
-                    state = TeleOpState.CLIMB_2_RETRACT_1
+                    state = if (hardware.getCurrentSlideExtension() < 0.2) TeleOpState.CLIMB_2_FINISH else TeleOpState.CLIMB_2_RETRACT_1
                 }
             }
             TeleOpState.CLIMB_2_RETRACT_1 -> {
                 hardware.targetSlideExtension = -0.1
-                hardware.targetPivotAngle = 1.2
+                hardware.targetPivotAngle = 1.7
                 if (hardware.getCurrentSlideExtension() < 0.2) {
-                    hardware.targetPivotAngle = 0.5
+                    hardware.targetPivotAngle = 1.9
                 }
                 if (driver1.right_trigger.wasPressed(0.5)) {
-                    state = TeleOpState.CLIMB_2_RETRACT
+                    state = if (hardware.getCurrentSlideExtension() < 0.2) TeleOpState.CLIMB_2_FINISH else TeleOpState.CLIMB_2_RETRACT
                 }
+            }
+            TeleOpState.CLIMB_2_FINISH -> {
+                hardware.targetSlideExtension = 0.1
+                hardware.targetPivotAngle = 0.95
             }
         }
 
@@ -385,12 +395,12 @@ class RushedTeleOp : OpMode() {
         val heading_kP = 0.5
         val turnPower = if (useHeadingPID)
             wrapAngle(targetHeading - hardware.currentHeading) * heading_kP
-            else Math.pow(gamepad1.right_stick_x.toDouble(), 3.0)
+            else powerCurve(gamepad1.right_stick_x.toDouble(), 1.75)
         var fieldXBasisInRobotSpace = Vector2d(cos(-hardware.currentHeading), sin(-hardware.currentHeading))
         var fieldYBasisInRobotSpace = Vector2d(sin(-hardware.currentHeading), -cos(-hardware.currentHeading))
 
-        var fwdCommand = Math.pow((-gamepad1.left_stick_y).toDouble(), 3.0)
-        var sideCommand = Math.pow((-gamepad1.left_stick_x).toDouble(), 3.0)
+        var fwdCommand = powerCurve((-gamepad1.left_stick_y).toDouble(), 1.75)
+        var sideCommand = powerCurve((-gamepad1.left_stick_x).toDouble(), 1.75)
 
         hardware.driveCommand = if (climbing) PoseVelocity2d(Vector2d(0.0, 0.0), 0.0)
             else PoseVelocity2d(
