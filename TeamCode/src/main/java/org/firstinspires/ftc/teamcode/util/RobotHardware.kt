@@ -46,7 +46,7 @@ import kotlin.math.sin
 
 @Config object HardwareConstants {
 
-    @JvmField var SLIDES_TICKS_IN_EXTENSION = 2900.0;
+    @JvmField var SLIDES_TICKS_IN_EXTENSION = 2900.0 * (36.0/32.0);
     val PIVOT_TICKS_PER_RAD = 2786.2 / (28/10); // motor output ticks per rev / 2pi rads per rev /
 
     @JvmField var SLIDES_KS = 0.75;
