@@ -244,10 +244,10 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
             return@timedAction true
         }, timeout)
     }
-    fun intakeAction(speed: Double, timeout: Double): Action {
+    fun intakeAction(speed: Double, timeout: Double, shouldStop: Boolean = true): Action {
         return timedAction({
                 shouldRun, p ->
-            intakeSpeed = if (shouldRun) speed else 0.0
+            intakeSpeed = if (shouldRun) speed else if (shouldStop) 0.0 else speed
             return@timedAction true
         }, timeout)
     }
