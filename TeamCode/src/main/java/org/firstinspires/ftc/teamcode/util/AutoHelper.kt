@@ -45,12 +45,13 @@ class AutoHelper(val hardware: RobotHardware) {
         )
     }
 
-    fun readyToGrabGamePieceAction(extension: Double): Action {
+    fun readyToGrabGamePieceAction(extension: Double, roll: Double): Action {
         return SequentialAction(
             hardware.plungerAction(true, 0.0),
             hardware.wristPitchAction(-1.5, 0.0),
+            hardware.wristRollAction(roll, 0.0),
             hardware.slideToPosAction(0.1),
-            hardware.pivotToAngleAction(0.0),
+            hardware.pivotToAngleAction(0.2 + extension * 0.2),
             hardware.slideToPosAction(extension)
         )
     }
