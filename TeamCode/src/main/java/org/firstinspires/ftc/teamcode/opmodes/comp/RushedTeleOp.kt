@@ -76,7 +76,8 @@ enum class TeleOpState {
     CLIMB_2_START_2,
     CLIMB_2_START_AGAIN,
     CLIMB_2_RETRACT_1,
-    CLIMB_2_FINISH
+    CLIMB_2_FINISH,
+    HOMING
 }
 
 @TeleOp(name = "Rushed TeleOp", group = "Iterative OpMode")
@@ -221,6 +222,14 @@ class RushedTeleOp : OpMode() {
                     state = TeleOpState.DRIVING
                 }
 
+            }
+            TeleOpState.HOMING -> {
+                hardware.targetPivotAngle = -0.1
+                hardware.targetSlideExtension = -0.02
+                if (runtime.seconds() - stateSwitchTime > 2) {
+                    hardware.resetEncoders()
+                    state = TeleOpState.DRIVING
+                }
             }
             TeleOpState.SCORING -> {
 

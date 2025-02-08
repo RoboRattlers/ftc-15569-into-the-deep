@@ -219,6 +219,17 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
 
     }
 
+    fun resetEncoders() {
+        rightPivot.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
+        leftPivot.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
+        rightExtend.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
+        leftExtend.mode = DcMotor.RunMode.STOP_AND_RESET_ENCODER
+        rightPivot.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
+        leftPivot.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
+        rightExtend.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
+        leftExtend.mode = DcMotor.RunMode.RUN_WITHOUT_ENCODER
+    }
+
     fun wristRollAction(angle: Double, timeout: Double): Action {
         return timedAction({
             shouldRun, p ->
