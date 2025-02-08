@@ -36,12 +36,12 @@ class AutoHelper(val hardware: RobotHardware) {
 
     fun readyToScoreInBasketAction(): Action {
         return SequentialAction(
-            hardware.plungerAction(false, 0.0),
+            hardware.plungerAction(true, 0.0),
             hardware.wristPitchAction(0.6, 0.0),
-            hardware.wristRollAction(0.0, 0.0),
+            hardware.wristRollAction(0.4, 0.0),
             hardware.slideToPosAction(0.2),
             hardware.pivotToAngleAction(1.35),
-            hardware.slideToPosAction(0.7),
+            hardware.slideToPosAction(0.73),
         )
     }
 
