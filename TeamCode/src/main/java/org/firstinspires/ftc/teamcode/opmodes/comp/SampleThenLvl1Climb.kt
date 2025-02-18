@@ -42,6 +42,7 @@ class SampleThenLvl1Climb : LinearOpMode() {
         val speedUpConstraint = autoHelper.rampVelConstraint(15.0, MecanumDrive.PARAMS.maxWheelVel, 0.2, 0.5) // used when going down
 
         waitForStart()
+        hardware.imu.resetYaw()
 
         runBlocking(
             ParallelAction(
@@ -61,7 +62,7 @@ class SampleThenLvl1Climb : LinearOpMode() {
                     .stopAndAdd(hardware.intakeAction(-1.0, SCORING_OUTTAKE_TIMEOUT))
 
                     // grab 2nd sample
-                    .afterTime(0.0, autoHelper.readyToGrabGamePieceAction(0.3))
+                    .afterTime(0.0, autoHelper.readyToGrabGamePieceAction(0.3, 0.0))
                     .splineTo(gridToFieldCoords(0.5, 0.5), Math.PI/2, TranslationalVelConstraint(15.0))
                     .waitSeconds(0.0)
                     .stopAndAdd(autoHelper.grabGamePieceAction())

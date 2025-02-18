@@ -1,7 +1,7 @@
 package org.firstinspires.ftc.teamcode.util
 
+import androidx.core.math.MathUtils.clamp
 import androidx.core.util.Supplier
-import com.acmerobotics.roadrunner.clamp
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.util.MathUtils.lerp
 import kotlin.math.exp

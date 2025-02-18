@@ -3,9 +3,7 @@ package org.firstinspires.ftc.teamcode.util
 import com.acmerobotics.dashboard.config.Config
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket
 import com.acmerobotics.roadrunner.Action
-import com.acmerobotics.roadrunner.ParallelAction
 import com.acmerobotics.roadrunner.PoseVelocity2d
-import com.acmerobotics.roadrunner.SequentialAction
 import com.acmerobotics.roadrunner.Vector2d
 import com.acmerobotics.roadrunner.clamp
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot
@@ -138,7 +136,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         hardwareMap.get(CRServo::class.java, "RightIntake")
     }
 
-    private val imu: IMU by lazy {
+    val imu: IMU by lazy {
         hardwareMap.get(IMU::class.java, "imu")
     }
 
@@ -178,10 +176,10 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     var wristRoll = 0.0; // radians; 0 for pulleys facing outward when horizontal
 
     var driveCommand = PoseVelocity2d(Vector2d(0.0, 0.0), 0.0);
-    var zeroHeading = 0.0
+    //var zeroHeading = 0.0
     val currentHeading: Double
         get() {
-            return -imu.robotYawPitchRollAngles.getYaw(AngleUnit.RADIANS) - zeroHeading
+            return -imu.robotYawPitchRollAngles.getYaw(AngleUnit.RADIANS) //- zeroHeading
         }
     val currentPitch: Double
         get() {
@@ -213,7 +211,7 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
             if (startTime == -1.0) {
                 startTime = runtime.seconds()
             }
-            val shouldRun = runtime.seconds() - startTime < timeout
+            val shouldRun = timeout == -1.0 || runtime.seconds() - startTime < timeout
             return@Action func(shouldRun, p) && shouldRun
         }
 
@@ -244,10 +242,10 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
             return@timedAction true
         }, timeout)
     }
-    fun intakeAction(speed: Double, timeout: Double, shouldStop: Boolean = true): Action {
+    fun intakeAction(speed: Double, timeout: Double = 0.0): Action {
         return timedAction({
                 shouldRun, p ->
-            intakeSpeed = if (shouldRun) speed else if (shouldStop) 0.0 else speed
+            intakeSpeed = if (shouldRun || timeout <= 0.0) speed else 0.0
             return@timedAction true
         }, timeout)
     }
@@ -258,10 +256,19 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
             return@timedAction true
         }, timeout)
     }
+
     fun plungerAction(retracted: Boolean, timeout: Double): Action {
         return timedAction({
                 shouldRun, p ->
             plungerRetracted = retracted
+            return@timedAction true
+        }, timeout)
+    }
+
+    fun driveAction(command: PoseVelocity2d, timeout: Double): Action {
+        return timedAction({
+                shouldRun, p ->
+            this.driveCommand = if (shouldRun || timeout <= 0.0) command else PoseVelocity2d(Vector2d(0.0, 0.0), 0.0)
             return@timedAction true
         }, timeout)
     }

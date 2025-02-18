@@ -1,0 +1,71 @@
+/*
+ * Copyright (c) 2024 Phil Malone
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package org.firstinspires.ftc.teamcode.opmodes.util
+
+import android.util.Size
+import com.qualcomm.robotcore.eventloop.opmode.Disabled
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName
+import org.firstinspires.ftc.vision.VisionPortal
+
+/*
+ * This OpMode illustrates how to use a video source (camera) as a color sensor
+ *
+ * A "color sensor" will typically determine the color of the object that it is pointed at.
+ *
+ * This sample performs the same function, except it uses a video camera to inspect an object or scene.
+ * The user may choose to inspect all, or just a Region of Interest (ROI), of the active camera view.
+ * The user must also provide a list of "acceptable colors" (Swatches) from which the closest matching color will be selected.
+ *
+ * To perform this function, a VisionPortal runs a PredominantColorProcessor process.
+ *   The PredominantColorProcessor process is created first, and then the VisionPortal is built to use this process.
+ *   The PredominantColorProcessor analyses the ROI and splits the colored pixels into several color-clusters.
+ *   The largest of these clusters is then considered to be the "Predominant Color"
+ *   The process then matches the Predominant Color with the closest Swatch and returns that match.
+ *
+ * To aid the user, a colored rectangle is drawn on the camera preview to show the RegionOfInterest,
+ * The Predominant Color is used to paint the rectangle border, so the user can verify that the color is reasonable.
+ *
+ * Use Android Studio to Copy this Class, and Paste it into your team's code folder with a new name.
+ * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
+ */
+@TeleOp
+class SampleDetectionViewer : LinearOpMode() {
+    override fun runOpMode() {
+        val processor = SampleDetectionProcessor()
+
+        val portal = VisionPortal.Builder()
+            .addProcessor(processor)
+            .setCameraResolution(Size(320, 240))
+            .setCamera(hardwareMap.get(WebcamName::class.java, "Webcam 1"))
+            .build()
+
+        portal.resumeStreaming()
+        portal.setProcessorEnabled(processor, true)
+        telemetry.msTransmissionInterval = 50 // Speed up telemetry updates, Just use for debugging.
+
+        // WARNING:  To be able to view the stream preview on the Driver Station, this code runs in INIT mode.
+        while (opModeIsActive() || opModeInInit()) {
+            sleep(20)
+        }
+    }
+}

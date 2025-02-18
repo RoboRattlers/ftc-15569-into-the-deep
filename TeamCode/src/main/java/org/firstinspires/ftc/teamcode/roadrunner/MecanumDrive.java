@@ -96,7 +96,7 @@ public final class MecanumDrive {
         public double headingCorrectionThreshold = Math.toRadians(5.0);
         public double velCorrectionThreshold = 0.5;
         public double angVelCorrectionThreshold = Math.toRadians(20.0);
-        public double correctionTimeout = 2.0;
+        public double correctionTimeout = 1.0;
     }
 
     public static Params PARAMS = new Params();
