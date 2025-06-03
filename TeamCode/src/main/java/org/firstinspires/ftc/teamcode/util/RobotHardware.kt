@@ -6,6 +6,9 @@ import com.acmerobotics.roadrunner.Action
 import com.acmerobotics.roadrunner.PoseVelocity2d
 import com.acmerobotics.roadrunner.Vector2d
 import com.acmerobotics.roadrunner.clamp
+import com.acmerobotics.roadrunner.ftc.Encoder
+import com.acmerobotics.roadrunner.ftc.OverflowEncoder
+import com.acmerobotics.roadrunner.ftc.RawEncoder
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot
 import com.qualcomm.robotcore.hardware.CRServo
 import com.qualcomm.robotcore.hardware.DcMotor
@@ -18,6 +21,7 @@ import com.qualcomm.robotcore.hardware.VoltageSensor
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.robotcore.external.Telemetry
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit
+import org.firstinspires.ftc.teamcode.util.HardwareConstants.DRIVE_MAX_VOLTAGE
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.PIVOT_EXTENDED_KG
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.PIVOT_KD
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.PIVOT_KI
@@ -30,6 +34,7 @@ import org.firstinspires.ftc.teamcode.util.HardwareConstants.SLIDES_KD
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.SLIDES_KI
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.SLIDES_KP
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.SLIDES_KS
+import org.firstinspires.ftc.teamcode.util.HardwareConstants.SLIDES_OFFSET_PER_PIVOT_RADIAN
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.SLIDES_RETRACTED_KG
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.SLIDES_TICKS_IN_EXTENSION
 import org.firstinspires.ftc.teamcode.util.HardwareConstants.WRIST_PITCH_OFFSET
@@ -44,29 +49,32 @@ import kotlin.math.sin
 
 @Config object HardwareConstants {
 
-    @JvmField var SLIDES_TICKS_IN_EXTENSION = 2900.0 * (36.0/32.0);
-    val PIVOT_TICKS_PER_RAD = 2786.2 / (28/10); // motor output ticks per rev / 2pi rads per rev /
+    @JvmField var CAMERA_IN_PER_PIXEL = 1.5 / 35.0 // 1.5 in per 35 pixels
+    @JvmField var CAMERA_CENTER_X_OFFSET = -2.0
 
-    @JvmField var SLIDES_KS = 0.75;
-    @JvmField var SLIDES_RETRACTED_KG = 0.0;
-    @JvmField var SLIDES_EXTENDED_KG = 0.0;
-    @JvmField var PIVOT_KS = 0.6;
+    @JvmField var PTO_ACTIVE_POSITION = 0.9
+    @JvmField var SLIDES_TICKS_IN_EXTENSION = 1060.0 * 40.0/30.0 // original spool diameter/new spool diameter
+    val PIVOT_TICKS_PER_RAD = (/*1930.0*/ 500.0 * 4.0) / (2.0 * PI) // output ticks per revolution  *  (1 revolution / 2pi radians)
+    val SLIDES_OFFSET_PER_PIVOT_RADIAN = (-35.0 * 4.0) / (2.0 * PI)
+    val DRIVE_MAX_VOLTAGE = 12.2
+
+    @JvmField var SLIDES_KS = 0.6;
+    @JvmField var SLIDES_RETRACTED_KG = 2.0;
+    @JvmField var SLIDES_EXTENDED_KG = 2.0;
+    @JvmField var PIVOT_KS = 0.3;
     @JvmField var PIVOT_RETRACTED_KG = 0.0;
     @JvmField var PIVOT_EXTENDED_KG = 0.0;
 
     @JvmField var PIVOT_KP = 20.0;
-    @JvmField var PIVOT_KI = 2.0;
-    @JvmField var PIVOT_KD = 0.0;
-    @JvmField var SLIDES_KP = 200.0;
-    @JvmField var SLIDES_KI = 10.0;
-    @JvmField var SLIDES_KD = 0.0;
+    @JvmField var PIVOT_KI = 0.0;
+    @JvmField var PIVOT_KD = 2.0;
+    @JvmField var SLIDES_KP = 50.0;
+    @JvmField var SLIDES_KI = 2.4;
+    @JvmField var SLIDES_KD = 5.0;
 
-    @JvmField var WRIST_UNITS_PER_RAD = 0.4 / (2 * PI) / 2; // 2 units per 5 revolutions times 1 rev per 2pi radians (divided by 2 again for some reason)
-    @JvmField var WRIST_PITCH_OFFSET = 15.0;
-    @JvmField var WRIST_ROLL_OFFSET = 4.0;
-
-    @JvmField var PLUNGER_RETRACTED_POS = 0.5;
-    @JvmField var PLUNGER_EXTENDED_POS = 0.0;
+    @JvmField var WRIST_UNITS_PER_RAD = 0.21 // I think this is named incorrectly but idgaf
+    @JvmField var WRIST_PITCH_OFFSET = 0.0;
+    @JvmField var WRIST_ROLL_OFFSET = 0.0;
 
     val CHASSIS_WIDTH = 15.0;
     const val CHASSIS_LENGTH = 15.0;
@@ -74,23 +82,26 @@ import kotlin.math.sin
 
 }
 
-class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry: Telemetry) {
+class RobotHardware (val hardwareMap: HardwareMap, private val telemetry: Telemetry) {
 
 
     var intakeSpeed = 0.0
     var intakeSpin = 0.0 // for rotating the game piece inside the end effector
-    var plungerRetracted = false
+
+    var ptoActive = false
+    var fullForceRetract = false
+
 
     var commandDrivetrain = true
 
     var runtime = ElapsedTime()
     var targetPivotAngle = 0.0; // 0.0 when horizontal, pi/2 when vertical
     fun getCurrentPivotAngle(): Double {
-        return rightPivot.currentPosition/ PIVOT_TICKS_PER_RAD
+        return pivotEncoder.getPositionAndVelocity().position.toDouble() / PIVOT_TICKS_PER_RAD //rightPivot.currentPosition/ PIVOT_TICKS_PER_RAD
     }
     var targetSlideExtension = 0.0; // 0.0 when fully retracted, 1.0 when fully extended
     fun getCurrentSlideExtension(): Double {
-        return rightExtend.currentPosition / SLIDES_TICKS_IN_EXTENSION
+        return (rightExtend.currentPosition - SLIDES_OFFSET_PER_PIVOT_RADIAN * getCurrentPivotAngle() ) / SLIDES_TICKS_IN_EXTENSION
     }
 
     private val frontRightDrive: DcMotorEx by lazy {
@@ -126,14 +137,17 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     private val rightDiffy: Servo by lazy {
         hardwareMap.get(Servo::class.java, "RightDiffy")
     }
-    private val plunger: Servo by lazy {
-        hardwareMap.get(Servo::class.java, "IntakeExtend")
+    private val leftPTO: Servo by lazy {
+        hardwareMap.get(Servo::class.java, "LeftPTO")
     }
     private val leftIntake: CRServo by lazy {
         hardwareMap.get(CRServo::class.java, "LeftIntake")
     }
     private val rightIntake: CRServo by lazy {
         hardwareMap.get(CRServo::class.java, "RightIntake")
+    }
+    private val pivotEncoder: OverflowEncoder by lazy {
+        OverflowEncoder(RawEncoder(hardwareMap.get(DcMotorEx::class.java, "BackRightDrive")));
     }
 
     val imu: IMU by lazy {
@@ -173,10 +187,9 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
     var useSlidePID = true
 
     var wristPitch = 0.0; // radians; 0 for parallel with slides
-    var wristRoll = 0.0; // radians; 0 for pulleys facing outward when horizontal
+    var wristRoll = 0.0; // radians; 0 for pulleys facing inward when horizontal
 
     var driveCommand = PoseVelocity2d(Vector2d(0.0, 0.0), 0.0);
-    //var zeroHeading = 0.0
     val currentHeading: Double
         get() {
             return -imu.robotYawPitchRollAngles.getYaw(AngleUnit.RADIANS) //- zeroHeading
@@ -190,14 +203,14 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
             return -imu.robotYawPitchRollAngles.getYaw(AngleUnit.RADIANS)
         }
 
-    fun pivotToAngleAction(angle: Double, tolerance: Double = 0.05): Action {
+    fun pivotToAngleAction(angle: Double, tolerance: Double = 0.07): Action {
         return Action {
             targetPivotAngle = angle
             return@Action abs(getCurrentPivotAngle() - targetPivotAngle) > tolerance
         }
     }
 
-    fun slideToPosAction(pos: Double, tolerance: Double = 0.03): Action {
+    fun slideToPosAction(pos: Double, tolerance: Double = 0.07): Action {
         return Action {
             targetSlideExtension = pos
             return@Action abs(getCurrentSlideExtension() - targetSlideExtension) > tolerance
@@ -257,14 +270,6 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         }, timeout)
     }
 
-    fun plungerAction(retracted: Boolean, timeout: Double): Action {
-        return timedAction({
-                shouldRun, p ->
-            plungerRetracted = retracted
-            return@timedAction true
-        }, timeout)
-    }
-
     fun driveAction(command: PoseVelocity2d, timeout: Double): Action {
         return timedAction({
                 shouldRun, p ->
@@ -284,23 +289,24 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         frontRightDrive.direction = DcMotorSimple.Direction.FORWARD
         backRightDrive.direction = DcMotorSimple.Direction.FORWARD
 
-        frontRightDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
-        backRightDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
-        backLeftDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
-        frontLeftDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
+        frontRightDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+        backRightDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+        backLeftDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+        frontLeftDrive.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
 
 
         // + -> counter-clockwise, when viewed from right
         leftPivot.direction = DcMotorSimple.Direction.FORWARD
         rightPivot.direction = DcMotorSimple.Direction.REVERSE
-        leftPivot.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
-        rightPivot.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
+        leftPivot.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+        rightPivot.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+        pivotEncoder.direction = DcMotorSimple.Direction.REVERSE
 
         // + -> extend
-        leftExtend.direction = DcMotorSimple.Direction.REVERSE
+        leftExtend.direction = DcMotorSimple.Direction.FORWARD
         rightExtend.direction = DcMotorSimple.Direction.FORWARD
-        leftExtend.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
-        rightExtend.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.FLOAT
+        leftExtend.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+        rightExtend.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
 
         // + -> counter-clockwise, when viewed from right
         leftDiffy.direction = Servo.Direction.REVERSE
@@ -325,11 +331,18 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
 
     }
 
+    fun startingPose() {
+        targetPivotAngle = 0.6
+        wristPitch = 1.8
+        wristRoll = 0.0
+        targetSlideExtension = 0.0
+    }
+
     fun update() {
 
         // apply bounds to pivot and extension
-        targetPivotAngle = clamp(targetPivotAngle, 0.0, PI)
-        targetSlideExtension = clamp(targetSlideExtension, -0.05, 1.0)
+        targetPivotAngle = clamp(targetPivotAngle, -0.1, PI)
+        targetSlideExtension = clamp(targetSlideExtension, -1.0, 1.3)
         PivotController.kP = PIVOT_KP
         PivotController.kI = PIVOT_KI
         PivotController.kS = PIVOT_KS
@@ -341,16 +354,16 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
         SlidesController.setPoint = targetSlideExtension
         SlidesController.update()
 
-        var slidesVoltage = if (useSlidePID) pidSlidesVoltage else feedforwardSlidesVoltage
-        rightExtend.power = voltageToPower(slidesVoltage)
-        leftExtend.power = voltageToPower(slidesVoltage)
+        val slidesVoltage = if (targetSlideExtension < -0.5) -14.0
+            else if (useSlidePID) pidSlidesVoltage
+            else feedforwardSlidesVoltage
         rightPivot.power = voltageToPower(PivotController.voltage)
         leftPivot.power = voltageToPower(PivotController.voltage)
 
-        rightDiffy.position = (wristPitch + wristRoll/2 + WRIST_PITCH_OFFSET + WRIST_ROLL_OFFSET/2) * WRIST_UNITS_PER_RAD
-        leftDiffy.position = (wristPitch - wristRoll/2 + WRIST_PITCH_OFFSET - WRIST_ROLL_OFFSET/2) * WRIST_UNITS_PER_RAD
+        rightDiffy.position = 0.5 + (wristPitch + wristRoll/2 + WRIST_PITCH_OFFSET + WRIST_ROLL_OFFSET/2) * WRIST_UNITS_PER_RAD
+        leftDiffy.position = 0.5 + (wristPitch - wristRoll/2 + WRIST_PITCH_OFFSET - WRIST_ROLL_OFFSET/2) * WRIST_UNITS_PER_RAD
 
-        plunger.position = if (plungerRetracted) HardwareConstants.PLUNGER_RETRACTED_POS else HardwareConstants.PLUNGER_EXTENDED_POS
+        leftPTO.position = if (ptoActive) HardwareConstants.PTO_ACTIVE_POSITION else 0.65
         rightIntake.power = intakeSpeed + intakeSpin;
         leftIntake.power = intakeSpeed - intakeSpin * 0.75;
 
@@ -373,12 +386,30 @@ class RobotHardware (private val hardwareMap: HardwareMap, private val telemetry
             frontLeftPower *= normalizationFactor
         }
 
-        if (commandDrivetrain) {
-            frontRightDrive.power = voltageToPower(frontRightPower * 10)
-            backRightDrive.power = voltageToPower(backRightPower * 10)
-            backLeftDrive.power = voltageToPower(backLeftPower * 10)
-            frontLeftDrive.power = voltageToPower(frontLeftPower * 10)
+        if (ptoActive) {
+            frontRightDrive.power = -voltageToPower(slidesVoltage)
+            backRightDrive.power = -voltageToPower(slidesVoltage)
+            backLeftDrive.power = -voltageToPower(slidesVoltage)
+            frontLeftDrive.power = -voltageToPower(slidesVoltage)
+            rightExtend.power = voltageToPower(slidesVoltage)
+            leftExtend.power = voltageToPower(slidesVoltage)
+        } else if (commandDrivetrain) {
+            frontRightDrive.power = voltageToPower(frontRightPower * DRIVE_MAX_VOLTAGE)
+            backRightDrive.power = voltageToPower(backRightPower * DRIVE_MAX_VOLTAGE)
+            backLeftDrive.power = voltageToPower(backLeftPower * DRIVE_MAX_VOLTAGE)
+            frontLeftDrive.power = voltageToPower(frontLeftPower * DRIVE_MAX_VOLTAGE)
         }
+
+        if (!ptoActive) {
+            rightExtend.power = voltageToPower(slidesVoltage)
+            leftExtend.power = voltageToPower(slidesVoltage)
+        }
+
+        telemetry.addData("Slide extension", getCurrentSlideExtension())
+        telemetry.addData("Pivot angle", getCurrentPivotAngle())
+        telemetry.addData("Slides voltage", slidesVoltage)
+        telemetry.addData("Pivot voltage", pivotVoltage)
+        telemetry.addData("Pivot external encoder", pivotEncoder.getPositionAndVelocity().position)
 
 
     }

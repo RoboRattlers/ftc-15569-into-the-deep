@@ -21,7 +21,7 @@ import org.firstinspires.ftc.teamcode.util.RobotHardware
 // +5,0 is red alliance's observation zone
 // 0,+5 is blue alliance
 @Autonomous
-class `4Samp` : LinearOpMode() {
+class `3Samp` : LinearOpMode() {
 
     private lateinit var hardware: RobotHardware
     private lateinit var autoHelper: AutoHelper
@@ -117,34 +117,7 @@ class `4Samp` : LinearOpMode() {
                     .splineToLinearHeading(gridToFieldCoords(0.17, 1.48, Math.PI), Math.PI/2, TranslationalVelConstraint(15.0))
                     .build()
             ),
-            autoHelper.grabGamePieceAction(),
-
-            // score 4th sample
-            ParallelAction(
-                ParallelAction(
-                    SleepAction(2.0),
-                    autoHelper.readyToScoreInBasketAction()
-                ),
-                drive.actionBuilder(gridToFieldCoords(0.17, 1.48, Math.PI))
-                    .setTangent(-Math.toRadians(90.0))
-                    .splineToLinearHeading(gridToFieldCoords(0.18, 0.18, Math.PI / 4), -3 * Math.PI/4,
-                        MinVelConstraint(listOf(
-                          TranslationalVelConstraint(8.0),
-                            AngularVelConstraint(Math.PI/8)
-                        )))
-                    .build()
-            ),
-            hardware.intakeAction(OUTTAKE_SPEED, SCORING_OUTTAKE_TIMEOUT),
-            hardware.wristPitchAction(0.0, 0.0),
-
-            // park
-            ParallelAction(
-                autoHelper.readyToLvl1AscentAction(),
-                drive.actionBuilder(drive.pose)
-                    .setTangent(Math.PI/2)
-                    .splineToSplineHeading(gridToFieldCoords(1.7, 2.3, Math.PI), 0.0, speedUpConstraint)
-                    .build()
-            )
+            autoHelper.grabGamePieceAction()
 
         )
 

@@ -20,12 +20,15 @@
  */
 package org.firstinspires.ftc.teamcode.opmodes.util
 
-import android.util.Size
-import com.qualcomm.robotcore.eventloop.opmode.Disabled
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket
+import com.acmerobotics.roadrunner.Action
+import com.acmerobotics.roadrunner.Pose2d
+import com.qualcomm.robotcore.eventloop.opmode.OpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName
-import org.firstinspires.ftc.vision.VisionPortal
+import org.firstinspires.ftc.teamcode.util.RobotHardware
+import org.firstinspires.ftc.teamcode.util.SampleColor
+import org.firstinspires.ftc.teamcode.util.SubVisionHelper
+import java.util.Locale
 
 /*
  * This OpMode illustrates how to use a video source (camera) as a color sensor
@@ -49,23 +52,43 @@ import org.firstinspires.ftc.vision.VisionPortal
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 @TeleOp
-class SampleDetectionViewer : LinearOpMode() {
-    override fun runOpMode() {
-        val processor = SampleDetectionProcessor()
+class SampleDetectionViewer : OpMode() {
 
-        val portal = VisionPortal.Builder()
-            .addProcessor(processor)
-            .setCameraResolution(Size(320, 240))
-            .setCamera(hardwareMap.get(WebcamName::class.java, "Webcam 1"))
-            .build()
+    private lateinit var hardware: RobotHardware
+    private lateinit var subVisionHelper: SubVisionHelper
+    private lateinit var visionPoseAction: Action
+    private var isActionRunning = true
 
-        portal.resumeStreaming()
-        portal.setProcessorEnabled(processor, true)
-        telemetry.msTransmissionInterval = 50 // Speed up telemetry updates, Just use for debugging.
+    override fun init() {
 
-        // WARNING:  To be able to view the stream preview on the Driver Station, this code runs in INIT mode.
-        while (opModeIsActive() || opModeInInit()) {
-            sleep(20)
-        }
+        hardware = RobotHardware(hardwareMap, telemetry)
+        hardware.init();
+        subVisionHelper = SubVisionHelper(hardware)
+        subVisionHelper.enable()
+        visionPoseAction = subVisionHelper.visionPoseAction()
+
+    }
+
+    fun poseToString(pose: Pose2d): String {
+        return String.format(Locale.US, "%.2f, %.2f, %.2f", pose.position.x, pose.position.y, Math.toDegrees(pose.heading.toDouble()))
+    }
+
+    override fun init_loop() {
+        val packet = TelemetryPacket()
+        if (isActionRunning) { isActionRunning = visionPoseAction.run(TelemetryPacket()) }
+        hardware.update()
+        val red = subVisionHelper.getCentermostDetection(SampleColor.RED)
+        val blue = subVisionHelper.getCentermostDetection(SampleColor.BLUE)
+        val yellow = subVisionHelper.getCentermostDetection(SampleColor.YELLOW)
+        val redPose = red?.pose ?: Pose2d(0.0, 0.0, 0.0)
+        val bluePose = blue?.pose ?: Pose2d(0.0, 0.0, 0.0)
+        val yellowPose = yellow?.pose ?: Pose2d(0.0, 0.0, 0.0)
+        telemetry.addData("Centermost red sample pose", poseToString(redPose))
+        telemetry.addData("Centermost blue sample pose", poseToString(bluePose))
+        telemetry.addData("Centermost yellow sample pose", poseToString(yellowPose))
+        telemetry.update()
+    }
+
+    override fun loop() {
     }
 }

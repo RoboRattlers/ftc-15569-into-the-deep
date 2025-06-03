@@ -56,7 +56,7 @@ object PIDTunerPositions {
     @JvmField var wristPitch = 0.0
     @JvmField var wristRoll = 0.0
     @JvmField var intakeSpeed = 0.0
-    @JvmField var plungerRetracted = false
+    @JvmField var ptoActive = false
 }
 
 @TeleOp(name = "PID Tuner", group = "Iterative OpMode")
@@ -100,8 +100,8 @@ class PositionTuner : OpMode() {
         hardware.targetSlideExtension = PIDTunerPositions.slideExtension
         hardware.wristPitch = PIDTunerPositions.wristPitch
         hardware.wristRoll = PIDTunerPositions.wristRoll
-        hardware.plungerRetracted = PIDTunerPositions.plungerRetracted
         hardware.intakeSpeed = PIDTunerPositions.intakeSpeed
+        hardware.ptoActive = PIDTunerPositions.ptoActive
         hardware.update()
         telemetry.addData("Pivot Voltage", hardware.pivotVoltage)
         telemetry.addData("Slides Voltage", hardware.pidSlidesVoltage)

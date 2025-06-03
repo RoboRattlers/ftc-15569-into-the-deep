@@ -54,6 +54,10 @@ import java.util.List;
 
 @Config
 public final class MecanumDrive {
+    public boolean isFollowingTrajectory() {
+        return followingTrajectory;
+    }
+
     public static class Params {
         // IMU orientation
         // TODO: fill in these values based on
@@ -61,7 +65,7 @@ public final class MecanumDrive {
         public RevHubOrientationOnRobot.LogoFacingDirection logoFacingDirection =
                 RevHubOrientationOnRobot.LogoFacingDirection.UP;
         public RevHubOrientationOnRobot.UsbFacingDirection usbFacingDirection =
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
+                RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD;
 
         // drive model parameters
         public double inPerTick = 93.875/31870.0;
@@ -69,23 +73,23 @@ public final class MecanumDrive {
         public double trackWidthTicks = 3213.936896545979;
 
         // feedforward parameters (in tick units)
-        public double kS = 1.1;
-        public double kV = 0.00043;
-        public double kA = 0.0001;
+        public double kS = 1.7747636441293818;
+        public double kV = 0.0003322786345892225;
+        public double kA = 0.00005;
 
         // path profile parameters (in inches)
-        public double maxWheelVel = 40;
+        public double maxWheelVel = 42;
         public double minProfileAccel = -50;
         public double maxProfileAccel = 50;
 
         // turn profile parameters (in radians)
-        public double maxAngVel = Math.PI/2; // shared with path
-        public double maxAngAccel = Math.PI;
+        public double maxAngVel = Math.PI; // shared with path
+        public double maxAngAccel = Math.PI * 2;
 
         // path controller gains
-        public double axialGain = 3.0;
-        public double lateralGain = 3.0;
-        public double headingGain = 4.0; // shared with turn
+        public double axialGain = 4.0;
+        public double lateralGain = 4.0;
+        public double headingGain = 3.0; // shared with turn
 
         public double axialVelGain = 0.0;
         public double lateralVelGain = 0.0;
@@ -96,7 +100,7 @@ public final class MecanumDrive {
         public double headingCorrectionThreshold = Math.toRadians(5.0);
         public double velCorrectionThreshold = 0.5;
         public double angVelCorrectionThreshold = Math.toRadians(20.0);
-        public double correctionTimeout = 1.0;
+        public double correctionTimeout = 1.5;
     }
 
     public static Params PARAMS = new Params();
@@ -122,6 +126,8 @@ public final class MecanumDrive {
 
     public final Localizer localizer;
     public Pose2d pose;
+
+    private boolean followingTrajectory = false;
 
     private final LinkedList<Pose2d> poseHistory = new LinkedList<>();
 
@@ -288,6 +294,8 @@ public final class MecanumDrive {
 
         @Override
         public boolean run(@NonNull TelemetryPacket p) {
+            followingTrajectory = true;
+
             double t;
             if (beginTs < 0) {
                 beginTs = Actions.now();
@@ -312,6 +320,8 @@ public final class MecanumDrive {
                 leftBack.setPower(0);
                 rightBack.setPower(0);
                 rightFront.setPower(0);
+
+                followingTrajectory = false;
 
                 return false;
             }
@@ -499,4 +509,5 @@ public final class MecanumDrive {
                 defaultVelConstraint, defaultAccelConstraint
         );
     }
+
 }
