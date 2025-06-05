@@ -97,7 +97,7 @@ class RobotHardware (val hardwareMap: HardwareMap, private val telemetry: Teleme
     var runtime = ElapsedTime()
     var targetPivotAngle = 0.0; // 0.0 when horizontal, pi/2 when vertical
     fun getCurrentPivotAngle(): Double {
-        return pivotEncoder.getPositionAndVelocity().position.toDouble() / PIVOT_TICKS_PER_RAD //rightPivot.currentPosition/ PIVOT_TICKS_PER_RAD
+        return (pivotEncoder.getPositionAndVelocity().position.toDouble() / PIVOT_TICKS_PER_RAD) + 0.03 //rightPivot.currentPosition/ PIVOT_TICKS_PER_RAD
     }
     var targetSlideExtension = 0.0; // 0.0 when fully retracted, 1.0 when fully extended
     fun getCurrentSlideExtension(): Double {
