@@ -64,7 +64,8 @@ class SampleDetectionViewer : OpMode() {
         hardware = RobotHardware(hardwareMap, telemetry)
         hardware.init();
         subVisionHelper = SubVisionHelper(hardware)
-        subVisionHelper.enable()
+        subVisionHelper.visionEnable()
+        subVisionHelper.processor.preferableColors = listOf(SampleColor.BLUE, SampleColor.YELLOW)
         visionPoseAction = subVisionHelper.visionPoseAction()
 
     }
@@ -77,16 +78,6 @@ class SampleDetectionViewer : OpMode() {
         val packet = TelemetryPacket()
         if (isActionRunning) { isActionRunning = visionPoseAction.run(TelemetryPacket()) }
         hardware.update()
-        val red = subVisionHelper.getCentermostDetection(SampleColor.RED)
-        val blue = subVisionHelper.getCentermostDetection(SampleColor.BLUE)
-        val yellow = subVisionHelper.getCentermostDetection(SampleColor.YELLOW)
-        val redPose = red?.pose ?: Pose2d(0.0, 0.0, 0.0)
-        val bluePose = blue?.pose ?: Pose2d(0.0, 0.0, 0.0)
-        val yellowPose = yellow?.pose ?: Pose2d(0.0, 0.0, 0.0)
-        telemetry.addData("Centermost red sample pose", poseToString(redPose))
-        telemetry.addData("Centermost blue sample pose", poseToString(bluePose))
-        telemetry.addData("Centermost yellow sample pose", poseToString(yellowPose))
-        telemetry.update()
     }
 
     override fun loop() {

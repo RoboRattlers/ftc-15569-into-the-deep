@@ -92,7 +92,7 @@ class RushedTeleOp : OpMode() {
     private val dash: FtcDashboard = FtcDashboard.getInstance()
 
     private var lastUpdateTime = 0.0
-    private val runtime = ElapsedTime()
+    private val runtime = ElapsedTime(ElapsedTime.Resolution.MILLISECONDS)
     private var stateSwitchTime = 0.0
     private lateinit var hardware : RobotHardware
     private lateinit var autoHelper : AutoHelper
@@ -177,30 +177,45 @@ class RushedTeleOp : OpMode() {
         when (state) {
             TeleOpState.DRIVING -> {
 
-                hardware.wristRoll = 0.0
-                hardware.wristPitch = 1.7
-                hardware.intakeSpeed = 0.0
-                hardware.targetSlideExtension = 0.05
-                hardware.ptoActive = false
+                if (actionQueue.isEmpty()) {
 
-                if (hardware.getCurrentSlideExtension() < 0.5) {
-                    hardware.targetPivotAngle = 1.2
-                }
 
-                mayUseHeadingPID = true
-                climbing = false
+                    hardware.wristRoll = 0.0
+                    hardware.wristPitch = 1.7
+                    hardware.intakeSpeed = if (driver1.left_trigger.value > 0.5) -1.0 else 0.0
+                    hardware.intakeSpin = 0.0
+                    hardware.targetSlideExtension = if (driver1.y.value) 0.235
+                        else if (driver1.x.value) 0.25
+                        else 0.05
+                    hardware.ptoActive = false
 
-                if ( driver1.right_stick_x isOver 0.2 ) {
-                    useHeadingPID = false
-                }
-
-                if (hardware.getCurrentSlideExtension() < 0.15) {
-                    driveSpeedMult = 1.0
-                    if (driver1.dpad_down.wasPressed || driver2.dpad_down.wasPressed) {
-                        state = TeleOpState.INTAKING
+                    if (hardware.getCurrentSlideExtension() < 0.5) {
+                        hardware.targetPivotAngle = if (driver1.x.value) 1.57 else 1.1
                     }
-                } else {
-                    driveSpeedMult = 0.5
+
+                    mayUseHeadingPID = true
+                    climbing = false
+
+                    if ( driver1.right_stick_x isOver 0.2 ) {
+                        useHeadingPID = false
+                    }
+
+                    if (hardware.getCurrentSlideExtension() < 0.4) {
+                        driveSpeedMult = 1.0
+                        if (driver1.dpad_down.wasPressed || driver2.dpad_down.wasPressed) {
+                            state = TeleOpState.INTAKING
+                        }
+                    } else {
+                        driveSpeedMult = 0.5
+                    }
+
+                }
+
+                if (driver1.y.wasReleased && actionQueue.isEmpty()) {
+                    runActionAsync(autoHelper.timeoutAction(SequentialAction(
+                        autoHelper.readyToScoreSpecimenAction(),
+                        autoHelper.scoreSpecimenAction(null),
+                    ), 5.0))
                 }
 
                 if (driver1.dpad_up.wasPressed || driver2.dpad_up.wasPressed || driver1.left_stick_button.value) {
@@ -244,8 +259,8 @@ class RushedTeleOp : OpMode() {
 
                 if (specIntake) {
                     hardware.targetSlideExtension = 0.0
-                    hardware.targetPivotAngle = 0.28 + (if (driver1.a.value) 0.05 else if (driver1.x.value) -0.05 else 0.0 )
-                    hardware.wristPitch = -0.38
+                    hardware.targetPivotAngle = 0.35 + (if (driver1.a.value) 0.05 else if (driver1.x.value) -0.05 else 0.0 )
+                    hardware.wristPitch = -0.3
                     if (driver1.right_trigger isOver 0.2) {
                         hardware.intakeSpeed = 1.0
                     } else if (driver1.left_trigger isOver 0.2) {
@@ -263,6 +278,14 @@ class RushedTeleOp : OpMode() {
                         hardware.intakeSpeed = -1.0
                     } else {
                         hardware.intakeSpeed = 0.0
+                    }
+                    if (driver1.x.value) {
+                        hardware.wristPitch = 0.0
+                        hardware.wristRoll = 0.0
+                        hardware.targetSlideExtension = 0.0
+                        if (hardware.targetSlideExtension < 0.1) {
+                            state = TeleOpState.DRIVING
+                        }
                     }
                 }
 
@@ -284,7 +307,7 @@ class RushedTeleOp : OpMode() {
                 hardware.targetPivotAngle = -0.1
                 hardware.targetSlideExtension = -0.04
                 if (runtime.seconds() - stateSwitchTime > 1.1) {
-                    hardware.targetPivotAngle = 0.105
+                    //hardware.targetPivotAngle = 0.105
                 }
                 if (runtime.seconds() - stateSwitchTime > 1.5) {
                     hardware.resetEncoders()
@@ -295,7 +318,7 @@ class RushedTeleOp : OpMode() {
 
                 if (justSwitchedState) {
                     scoreHeightIndex = 0
-                    mayUseHeadingPID = true
+                    mayUseHeadingPID = false
                     useHeadingPID = false
                 }
 
@@ -303,12 +326,12 @@ class RushedTeleOp : OpMode() {
                     useHeadingPID = false
                 }
 
-                driveSpeedMult = mapRange(hardware.getCurrentSlideExtension(), 0.0, 1.0, 1.0, 0.6)
+                driveSpeedMult = mapRange(hardware.getCurrentSlideExtension(), 0.0, 1.0, 0.8, 0.4)
 
                 if (actionQueue.isEmpty()) {
 
                     // pivot
-                    hardware.targetPivotAngle = 1.58// + if (driver1.a.value) 0.05 else 0.0 //+ hardware.getCurrentSlideExtension() * 0.06
+                    hardware.targetPivotAngle = 1.58 + if (driver1.left_bumper.value) 0.05 else 0.0
 
                     // extension
                     if (driver1.left_stick_button.value) {
@@ -338,12 +361,11 @@ class RushedTeleOp : OpMode() {
 
                 }
 
-                if (driver1.x.wasPressed && actionQueue.isEmpty()) {
-                    runActionAsync(SequentialAction(
+                if (driver1.y.wasPressed && actionQueue.isEmpty()) {
+                    runActionAsync(autoHelper.timeoutAction(SequentialAction(
                         autoHelper.readyToScoreSpecimenAction(),
-                        Action { return@Action driver1.x.value },
-                        autoHelper.scoreSpecimenAction(),
-                    ))
+                        autoHelper.scoreSpecimenAction(null),
+                    ), 5.0))
                 }
 
             }
@@ -398,6 +420,9 @@ class RushedTeleOp : OpMode() {
             TeleOpState.CLIMB_2_START -> {
                 hardware.targetSlideExtension = 0.3
                 hardware.wristPitch = -1.5
+                if (driver1.left_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_1_RETRACT_2
+                }
                 if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_EXTEND
                 }
@@ -406,6 +431,9 @@ class RushedTeleOp : OpMode() {
             TeleOpState.CLIMB_2_EXTEND -> {
                 hardware.targetPivotAngle = 1.9
                 hardware.targetSlideExtension = 1.0
+                if (driver1.left_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_2_START
+                }
                 if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_OVEREXTEND
                 }
@@ -414,6 +442,9 @@ class RushedTeleOp : OpMode() {
                 hardware.targetSlideExtension = 1.0
                 hardware.wristPitch = 1.5
                 hardware.targetPivotAngle = 2.4
+                if (driver1.left_trigger.wasPressed(0.5)) {
+                    state = TeleOpState.CLIMB_2_EXTEND
+                }
                 if (driver1.right_trigger.wasPressed(0.5)) {
                     state = TeleOpState.CLIMB_2_RETRACT
                 }
@@ -425,11 +456,11 @@ class RushedTeleOp : OpMode() {
                 } else {
                     hardware.targetPivotAngle = 2.0
                 }
-                if (driver1.left_trigger.wasPressed(0.5)) {
+                if (driver1.left_trigger.wasPressed(0.3)) {
                     state = TeleOpState.CLIMB_2_OVEREXTEND
                 }
-                if (driver1.right_trigger.wasPressed(0.5)) {
-                    state = if (hardware.getCurrentSlideExtension() < 0.1) TeleOpState.CLIMB_2_FINISH else TeleOpState.CLIMB_2_RETRACT_1
+                if (driver1.right_trigger.wasPressed(0.3)) {
+                    state = if (hardware.getCurrentSlideExtension() < 0.2) TeleOpState.CLIMB_2_FINISH else TeleOpState.CLIMB_2_RETRACT_1
                 }
                 hardware.ptoActive = true
             }
@@ -440,21 +471,25 @@ class RushedTeleOp : OpMode() {
                 } else if (hardware.getCurrentSlideExtension() < 0.2) {
                     hardware.targetPivotAngle = 2.0
                 } else {
-                    hardware.targetPivotAngle = 1.5
+                    hardware.targetPivotAngle = 1.4
                 }
-                if (driver1.right_trigger.wasPressed(0.5)) {
-                    state = if (hardware.getCurrentSlideExtension() < 0.1) TeleOpState.CLIMB_2_FINISH else TeleOpState.CLIMB_2_RETRACT
+                if (driver1.right_trigger.wasPressed(0.3)) {
+                    state = if (hardware.getCurrentSlideExtension() < 0.2) TeleOpState.CLIMB_2_FINISH else TeleOpState.CLIMB_2_RETRACT
                 }
             }
             TeleOpState.CLIMB_2_FINISH -> {
-                hardware.ptoActive = false
+                telemetry.addData("I AM IN CLIMB 2 FINISH", "yes")
                 hardware.targetSlideExtension = 0.35
+                hardware.targetPivotAngle = 1.5
                 if (hardware.getCurrentSlideExtension() > 0.1) {
                     hardware.targetPivotAngle = 2.2
                 }
                 if (hardware.getCurrentSlideExtension() > 0.2) {
                     hardware.targetPivotAngle = 0.95
                 }
+                hardware.driveCommand = PoseVelocity2d(Vector2d(0.0, 0.0), 0.0)
+                hardware.ptoActive = false
+                //hardware.targetPivotAngle = 0.95
             }
         }
 
@@ -503,13 +538,11 @@ class RushedTeleOp : OpMode() {
             else PoseVelocity2d(
             fieldXBasisInRobotSpace.times( fwdCommand )
                 .plus( fieldYBasisInRobotSpace.times(sideCommand) ).times(driveSpeedMult),
-            turnPower * driveSpeedMult.pow(1.0 / 3.0) * (if (state == TeleOpState.INTAKING) 0.45 else 1.0 )
+            turnPower * driveSpeedMult.pow(1.0 / 3.0) * (if (state == TeleOpState.INTAKING || state == TeleOpState.SCORING) 0.45 else 1.0 )
         )
 
         handleRunningActions(packet)
         hardware.update()
-
-        telemetry.addData("Robot pitch", hardware.currentPitch)
         telemetry.update()
         dash.sendTelemetryPacket(packet)
 

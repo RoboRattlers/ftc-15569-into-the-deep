@@ -16,9 +16,10 @@ class PIDSFController(private var value: () -> Double,
                       var kI: Double = 0.0,
                       var kD: Double = 0.0,
                       var kS: Double = 0.0,
-                      var kF: Supplier<Double>?) {
+                      var kF: Supplier<Double>?,
+    ) {
 
-    private val runtime = ElapsedTime()
+    private val runtime = ElapsedTime(ElapsedTime.Resolution.MILLISECONDS)
 
     var setPoint = 0.0;
     var voltage = 0.0
@@ -38,10 +39,7 @@ class PIDSFController(private var value: () -> Double,
         lastError = error
         error = setPoint - value()
 
-        // apparently in the biz they call this a "first order lag filter."
-        // I'm a game dev so to me this is "lerp smoothing"
-        var noisyDerivative = (error - lastError) / deltaTime
-        smoothDerivative = lerp(noisyDerivative, smoothDerivative, exp(-35 * deltaTime))
+        var noisyDerivative = if (deltaTime < 0.0001) 0.0 else (error - lastError) / deltaTime
 
         accumulatedIntegralGain += error * deltaTime * kI
         accumulatedIntegralGain = clamp(accumulatedIntegralGain, -3.0, 3.0)

@@ -6,6 +6,8 @@ import com.acmerobotics.roadrunner.clamp
 import java.lang.Math.pow
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sign
 
 object MathUtils {
@@ -25,7 +27,7 @@ object MathUtils {
 
     fun mapRange(value: Double, oldMin: Double, oldMax: Double, newMin: Double, newMax: Double, clampValue: Boolean = false): Double {
         var newValue = (value - oldMin) / (oldMax - oldMin) * (newMax - newMin) + newMin
-        return if (clampValue) clamp(newValue, newMin, newMax) else newValue
+        return if (clampValue) max(min(newValue, max(newMin, newMax)), min(newMin, newMax)) else newValue
     }
 
     fun clampInt(value: Int, min: Int, max: Int): Int {

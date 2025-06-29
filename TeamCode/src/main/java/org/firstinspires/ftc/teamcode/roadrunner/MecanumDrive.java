@@ -30,7 +30,6 @@ import com.acmerobotics.roadrunner.ftc.LynxFirmware;
 import com.acmerobotics.roadrunner.ftc.OverflowEncoder;
 import com.acmerobotics.roadrunner.ftc.PositionVelocityPair;
 import com.acmerobotics.roadrunner.ftc.RawEncoder;
-import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -46,6 +45,7 @@ import org.firstinspires.ftc.teamcode.roadrunner.messages.DriveCommandMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.MecanumCommandMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.MecanumLocalizerInputsMessage;
 import org.firstinspires.ftc.teamcode.roadrunner.messages.PoseMessage;
+import org.firstinspires.ftc.teamcode.util.HardwareConstants;
 
 import java.lang.Math;
 import java.util.Arrays;
@@ -69,38 +69,38 @@ public final class MecanumDrive {
 
         // drive model parameters
         public double inPerTick = 93.875/31870.0;
-        public double lateralInPerTick = inPerTick; // measured the exact same thing
+        public double lateralInPerTick = inPerTick * 1.0;
         public double trackWidthTicks = 3213.936896545979;
 
         // feedforward parameters (in tick units)
-        public double kS = 1.7747636441293818;
-        public double kV = 0.0003322786345892225;
-        public double kA = 0.00005;
+        public double kS = 1.95 * HardwareConstants.FLOOR_FRICTION_MULTIPLIER;
+        public double kV = 0.00029;//0.0003322786345892225;
+        public double kA = 0.000065;//0.00005;
 
         // path profile parameters (in inches)
         public double maxWheelVel = 42;
-        public double minProfileAccel = -50;
-        public double maxProfileAccel = 50;
+        public double minProfileAccel = -65;
+        public double maxProfileAccel = 65;
 
         // turn profile parameters (in radians)
-        public double maxAngVel = Math.PI; // shared with path
-        public double maxAngAccel = Math.PI * 2;
+        public double maxAngVel = Math.PI * 3; // shared with path
+        public double maxAngAccel = maxAngVel * 2.5;
 
         // path controller gains
         public double axialGain = 4.0;
         public double lateralGain = 4.0;
-        public double headingGain = 3.0; // shared with turn
+        public double headingGain = 5.0; // shared with turn
 
-        public double axialVelGain = 0.0;
-        public double lateralVelGain = 0.0;
-        public double headingVelGain = 0.0; // shared with turn
+        public double axialVelGain = 0.65;
+        public double lateralVelGain = 0.25;
+        public double headingVelGain = 0.35; // shared with turn
 
         // path correction parameters
         public double posCorrectionThreshold = 1.0;
-        public double headingCorrectionThreshold = Math.toRadians(5.0);
+        public double headingCorrectionThreshold = Math.toRadians(2.3);
         public double velCorrectionThreshold = 0.5;
         public double angVelCorrectionThreshold = Math.toRadians(20.0);
-        public double correctionTimeout = 1.5;
+        public double correctionTimeout = 1.0;//1.0;
     }
 
     public static Params PARAMS = new Params();
@@ -126,6 +126,7 @@ public final class MecanumDrive {
 
     public final Localizer localizer;
     public Pose2d pose;
+    public PoseVelocity2d velocityRobot;
 
     private boolean followingTrajectory = false;
 
@@ -466,6 +467,7 @@ public final class MecanumDrive {
     public PoseVelocity2d updatePoseEstimate() {
         Twist2dDual<Time> twist = localizer.update();
         pose = pose.plus(twist.value());
+        velocityRobot = twist.velocity().value();
 
         poseHistory.add(pose);
         while (poseHistory.size() > 100) {

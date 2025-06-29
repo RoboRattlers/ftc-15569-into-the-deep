@@ -1,10 +1,12 @@
 package org.firstinspires.ftc.teamcode.util
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import com.acmerobotics.roadrunner.Pose2d
+import com.acmerobotics.roadrunner.Vector2d
 import org.firstinspires.ftc.robotcore.internal.camera.calibration.CameraCalibration
 import org.firstinspires.ftc.vision.VisionProcessor
 import org.opencv.core.Core
@@ -16,12 +18,14 @@ import org.opencv.core.Point
 import org.opencv.core.RotatedRect
 import org.opencv.core.Scalar
 import org.opencv.imgproc.Imgproc
+import kotlin.math.pow
 
 
 enum class SampleColor {
     BLUE,
     RED,
-    YELLOW
+    YELLOW,
+    NONE
 }
 
 data class SampleDetection(val color: SampleColor, val pose: Pose2d, val boundingBox: RotatedRect)
@@ -30,22 +34,22 @@ data class VisionDebugPreview(val bitmap: Bitmap, val detections: List<SampleDet
 
 class SampleDetectionProcessor : VisionProcessor {
 
-    var yellowHueMin = 20.0
-    var yellowHueMax = 100.0
-    var blueHueMin = 100.0
+    var yellowHueMin = 5.0
+    var yellowHueMax = 75.0
+    var blueHueMin = 75.0
     var blueHueMax = 160.0
-    var saturationMin = 170.0
-    var valueMin = 140.0
+    var saturationMin = 110.0
+    var valueMin = 120.0
 
-    var blueHSVMin: Scalar = Scalar(blueHueMin, 120.0, 100.0, 0.0)
+    var blueHSVMin: Scalar = Scalar(blueHueMin, 150.0, 130.0, 0.0)
     var blueHSVMax: Scalar = Scalar(blueHueMax, 255.0, 255.0, 0.0)
-    var yellowHSVMin: Scalar = Scalar(yellowHueMin, 170.0, 150.0, 0.0)
+    var yellowHSVMin: Scalar = Scalar(yellowHueMin, 140.0, 140.0, 0.0)
     var yellowHSVMax: Scalar = Scalar(yellowHueMax, 255.0, 255.0, 0.0)
     // red has to be flipped since it occupies both the start and end of the hsv spectrum
-    var redHSVMin0: Scalar = Scalar(0.0, saturationMin, valueMin, 0.0)
-    var redHSVMax0: Scalar = Scalar(10.0, 255.0, 255.0, 0.0)
-    var redHSVMin1: Scalar = Scalar(170.0, saturationMin, valueMin, 0.0)
-    var redHSVMax1: Scalar = Scalar(180.0, 255.0, 255.0, 0.0)
+    var redHSVMin0: Scalar = Scalar(160.0, saturationMin, valueMin, 0.0)
+    var redHSVMax0: Scalar = Scalar(180.0, 255.0, 255.0, 0.0)
+    var redHSVMin1: Scalar = Scalar(0.0, saturationMin, valueMin, 0.0)
+    var redHSVMax1: Scalar = Scalar(5.0, 255.0, 255.0, 0.0)
 
     private val blankMat = Mat()
     private val hsvMat = Mat()
@@ -60,8 +64,10 @@ class SampleDetectionProcessor : VisionProcessor {
     private val contours = ArrayList<MatOfPoint>()
     private val hierarchy = Mat()
 
-    var minArea: Int = 40
-    var maxArea: Int = 10000
+    var minAreaContour: Int = 100
+    var minAreaRect: Int = 800
+    var maxAreaRect: Int = 4700
+    var minAspectRatio = 1.5
     private val contoursByArea = ArrayList<MatOfPoint>()
 
     private val contoursByArea2f = MatOfPoint2f()
@@ -73,9 +79,26 @@ class SampleDetectionProcessor : VisionProcessor {
     var lineColor: Scalar = Scalar(0.0, 255.0, 0.0, 0.0)
     var lineThickness: Int = 3
 
+    var preferableColors = listOf(SampleColor.YELLOW)
+
     private val inputRotRects = Mat()
 
     override fun init(width: Int, height: Int, calibration: CameraCalibration?) {
+    }
+
+    private fun getRealPosFromCameraFractionalPos(cameraPos: Vector2d): Vector2d {
+        val topX = 26.57857 * 2.0.pow(-1.77269 * cameraPos.x) - 14.37857
+        val bottomX = 28.09 * 2.0.pow(-1.36705 * cameraPos.x) - 17.49
+        val x = topX + (bottomX - topX) * cameraPos.y
+
+        val yAtTop = MathUtils.mapRange(topX, -6.6, 12.2, -4.3, -8.0)
+        val yAtBottom = MathUtils.mapRange(bottomX, -6.6, 10.6, 4.3, 7.7)
+        val y = yAtTop + (yAtBottom - yAtTop) * cameraPos.y
+        return Vector2d(x + HardwareConstants.CAMERA_CENTER_X_OFFSET, y)
+    }
+
+    private fun getScalingFactor(cameraFractionalX: Double): Double {
+        return 1.04167 * 2.0.pow( 1.23334 * cameraFractionalX) - 0.597222
     }
 
     fun detectFromBinaryMat(binaryMat: Mat, color: SampleColor) {
@@ -92,7 +115,7 @@ class SampleDetectionProcessor : VisionProcessor {
         contoursByArea.clear()
         for (contour in contours) {
             val area = Imgproc.contourArea(contour)
-            if ((area >= minArea) && (area <= maxArea)) {
+            if ((area >= minAreaContour) && (area <= 10000)) {
                 contoursByArea.add(contour)
             }
         }
@@ -102,6 +125,14 @@ class SampleDetectionProcessor : VisionProcessor {
             points.convertTo(contoursByArea2f, CvType.CV_32F)
 
             val boundingRect = Imgproc.minAreaRect(contoursByArea2f)
+            /*if (allowableColors.contains(color)) {
+                val aspectRatio = max(boundingRect.size.width, boundingRect.size.height) /
+                        min(boundingRect.size.width, boundingRect.size.height)
+                if (aspectRatio < minAspectRatio || boundingRect.size.area() < minAreaRect || boundingRect.size.area() > maxAreaRect) {
+                    continue
+                }
+            }*/
+
             val IN_PER_PIXEL = HardwareConstants.CAMERA_IN_PER_PIXEL
             val CENTER_X_OFFSET = HardwareConstants.CAMERA_CENTER_X_OFFSET
             var angle = if (boundingRect.size.width < boundingRect.size.height) boundingRect.angle + 90.0 else boundingRect.angle
@@ -109,11 +140,18 @@ class SampleDetectionProcessor : VisionProcessor {
                 angle = angle - 180.0
             }
             val transformedPose = Pose2d(
-                -(boundingRect.center.x - 160.0) * IN_PER_PIXEL + CENTER_X_OFFSET,
-                (boundingRect.center.y - 120.0) * IN_PER_PIXEL,
+                getRealPosFromCameraFractionalPos(Vector2d(boundingRect.center.x/320.0, boundingRect.center.y/240.0)),
                 -Math.toRadians(angle)
             )
-            modifiableSampleDetections.add(SampleDetection(color, transformedPose, boundingRect))
+            if (0.375 + transformedPose.position.x * HardwareConstants.SLIDES_EXTENSION_PER_IN < 0.48) {
+                modifiableSampleDetections.add(
+                    SampleDetection(
+                        color,
+                        transformedPose,
+                        boundingRect
+                    )
+                )
+            }
         }
     }
 
@@ -138,6 +176,7 @@ class SampleDetectionProcessor : VisionProcessor {
 
     }
 
+    @SuppressLint("DefaultLocale")
     override fun onDrawFrame(
         canvas: Canvas?,
         onscreenWidth: Int,
@@ -146,12 +185,21 @@ class SampleDetectionProcessor : VisionProcessor {
         scaleCanvasDensity: Float,
         userContext: Any?
     ) {
+        if (canvas == null) { return }
         var rectPaint = Paint()
         rectPaint.setStyle(Paint.Style.STROKE)
         rectPaint.setStrokeWidth(scaleCanvasDensity * 4)
 
+        var textPaint = Paint()
+        textPaint.setStyle(Paint.Style.FILL)
+        textPaint.setColor(Color.WHITE)
+
+        if (userContext == null) { return }
+
         val detections: List<SampleDetection> = userContext as List<SampleDetection>
+        val evilPoses = SubVisionSingleton.getEvilPoses(detections, listOf(SampleColor.BLUE, SampleColor.YELLOW))
         for (detection in detections) {
+            val evilness = SubVisionSingleton.getDetectionEvilness(detection, evilPoses)
             rectPaint.setColor(
                 if (detection.color == SampleColor.RED) Color.MAGENTA
                         else if (detection.color == SampleColor.BLUE) Color.CYAN
@@ -161,7 +209,7 @@ class SampleDetectionProcessor : VisionProcessor {
             for (i in 0..3) {
                 val point = rectPoints[i]
                 val nextPoint = rectPoints[(i + 1) % 4]
-                if (canvas != null && point != null && nextPoint != null) {
+                if (point != null && nextPoint != null) {
                     canvas.drawLine(
                         (point.x * scaleBmpPxToCanvasPx).toFloat(),
                         (point.y * scaleBmpPxToCanvasPx).toFloat(),
@@ -170,6 +218,17 @@ class SampleDetectionProcessor : VisionProcessor {
                     )
                 }
             }
+            canvas.drawText(
+                String.format("(%.2f, %.2f) %.2f evilness %.0f px",
+                    detection.pose.position.x,
+                    detection.pose.position.y,
+                    evilness,
+                    detection.boundingBox.size.area()
+                ),
+                (detection.boundingBox.center.x * scaleBmpPxToCanvasPx).toFloat(),
+                (detection.boundingBox.center.y * scaleBmpPxToCanvasPx).toFloat(),
+                textPaint
+            )
         }
     }
 }
